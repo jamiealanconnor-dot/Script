@@ -173,6 +173,9 @@ task.wait(1.5)
 end
 
 local function GetCurrentSwordStats(Sword,WantedStat,TargetStat)
+print(Sword)
+print(WantedStat)
+print(TargetStat)
 local IsHigher = false
 local Value
 if WantedStat == "Rarity" or "Quality" then
