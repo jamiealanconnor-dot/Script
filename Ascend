@@ -182,12 +182,11 @@ if WantedStat == "Rarity" or WantedStat == "Quality" then
     print("RareQual")
 else
     print("Mold")
+    repeat wait() until FindValue(WantedStat,Sword[WantedStat].Text) >= FindValue(WantedStat,TargetStat)
     Value = FindValue(WantedStat,Sword[WantedStat].Text)
+    IsHigher = true
 end
 
-if Value >= FindValue(WantedStat,TargetStat) then
-IsHigher = true
-end
 print(Value.." | "..FindValue(WantedStat,TargetStat))
 return IsHigher
 end
