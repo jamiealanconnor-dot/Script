@@ -176,8 +176,9 @@ local function GetCurrentSwordStats(Sword,WantedStat,TargetStat)
 local IsHigher = false
 local Value
 if WantedStat == "Rarity" or "Quality" then
-
+    print("RareQual")
 else
+    print("Mold")
     Value = FindValue(WantedStat,Sword[WantedStat].Text)
 end
 
