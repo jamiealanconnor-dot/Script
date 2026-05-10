@@ -184,6 +184,7 @@ end
 if Value >= FindValue(WantedStat,TargetStat) then
 IsHigher = true
 end
+print(Value.." | "..FindValue(WantedStat,TargetStat))
 return IsHigher
 end
 
@@ -209,7 +210,7 @@ local SwordStats = SwordInAscender.Main.Gui.ItemInfo
 
     if TargetMold then
         SetAscenderMode("Mold")
-        repeat wait() until GetCurrentSwordStats(SwordStats,"Mold") == true
+        repeat wait() until GetCurrentSwordStats(SwordStats,"Mold",TargetMold) == true
         print("Ascended Mold Successfully")
     end
 end
