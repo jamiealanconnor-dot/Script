@@ -1,0 +1,119 @@
+
+local Wanted = {
+    ["Fortune|Ancient|Ancient"] = true,
+    ["Fortune|Fortune|Ancient"] = true,
+    ["Fortune|Insight|Ancient"] = true
+}
+
+local WebhookID = _G.WebHookId
+
+local HttpService = game:GetService("HttpService")
+local request = syn and syn.request or request or http_request
+local Player = game.Players.LocalPlayer
+
+-- UI
+local UI = Instance.new("ScreenGui", game.CoreGui)
+
+local Button = Instance.new("TextButton", UI)
+Button.Size = UDim2.fromOffset(50, 50)
+Button.Position = UDim2.new(0, 700, 0, -50)
+Button.BackgroundTransparency = 0.5
+Button.Text = "Off"
+
+local Enabled = false
+
+Button.MouseButton1Down:Connect(function()
+    Enabled = not Enabled
+    Button.Text = Enabled and "On" or "Off"
+end)
+
+Button.MouseButton2Down:Connect(function()
+    Enabled = false
+    UI:Destroy()
+end)
+
+-- Sort enchant combo so order doesn't matter
+local function Normalize(str)
+    local t = {}
+
+    for v in str:gmatch("[^|]+") do
+        table.insert(t, v)
+    end
+
+    table.sort(t)
+    return table.concat(t, "|")
+end
+
+-- Pre-normalize wanted enchants
+local NormalizedWanted = {}
+
+for combo in pairs(Wanted) do
+    NormalizedWanted[Normalize(combo)] = true
+end
+
+local function SendMessage(e1, e2, e3)
+    request({
+        Url = WebhookID,
+        Method = "POST",
+        Headers = {
+            ["Content-Type"] = "application/json"
+        },
+
+        Body = HttpService:JSONEncode({
+            username = "Abbi's Webhook Bot",
+
+            embeds = {{
+                title = Player.Name,
+                description = "Found a Sword!",
+                color = 5793266,
+
+                fields = {
+                    {name = "Enchant 1", value = e1, inline = true},
+                    {name = "Enchant 2", value = e2, inline = true},
+                    {name = "Enchant 3", value = e3, inline = true}
+                }
+            }}
+        })
+    })
+end
+
+while task.wait(1) do
+    if not Enabled then
+        continue
+    end
+
+    for _, sword in pairs(workspace.Swords:GetChildren()) do
+        local main = sword:FindFirstChild("Main")
+        if not main then
+            continue
+        end
+
+        local info = main.Gui.ItemInfo
+        local enchants = info.Enchants
+
+        if #enchants:GetChildren() ~= 4 or info.Selling.Text == "" then
+            continue
+        end
+
+        local e1 = enchants.Enchant1.Text:match("^(%a+)")
+        local e2 = enchants.Enchant2.Text:match("^(%a+)")
+        local e3 = enchants.Enchant3.Text:match("^(%a+)")
+
+        local combo = Normalize(e1 .. "|" .. e2 .. "|" .. e3)
+
+        if NormalizedWanted[combo] then
+            local hrp = Player.Character.HumanoidRootPart
+            local oldPos = hrp.Position
+
+            Player.Character:MoveTo(main.Position + Vector3.new(0, 4, 0))
+            task.wait(0.5)
+            Player.Character:MoveTo(oldPos)
+
+            SendMessage(
+                enchants.Enchant1.Text,
+                enchants.Enchant2.Text,
+                enchants.Enchant3.Text
+            )
+        end
+    end
+end
