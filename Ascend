@@ -178,7 +178,7 @@ print(WantedStat)
 print(TargetStat)
 local IsHigher = false
 local Value
-if WantedStat == "Rarity" or "Quality" then
+if WantedStat == "Rarity" or WantedStat == "Quality" then
     print("RareQual")
 else
     print("Mold")
