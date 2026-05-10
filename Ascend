@@ -1,5 +1,5 @@
 local TweenService = game:GetService("TweenService")
-
+local Plr = game.Players.LocalPlayer
 local tweenInfo = TweenInfo.new(0.5,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
 
 local Modules = {
@@ -165,8 +165,52 @@ OpenButton.MouseButton1Down:Connect(function()
     ):Play()
 end)
 
+local function SetAscenderMode(AscendType)
+game.ReplicatedStorage.Paper.Remotes["__remoteevent"]:FireServer("Set Ascender Mode","")
+task.wait(1.5)
+game.ReplicatedStorage.Paper.Remotes["__remoteevent"]:FireServer("Set Ascender Mode",AscendType)
+task.wait(1.5)
+end
+
+local function GetCurrentSwordStats(Sword,WantedStat,TargetStat)
+local IsHigher = false
+local Value
+if WantedStat == "Rarity" or "Quality" then
+
+else
+    Value = FindValue(WantedStat,Sword[WantedStat].Text)
+end
+
+if Value >= FindValue(WantedStat,TargetStat) then
+IsHigher = true
+end
+return IsHigher
+end
+
 local function AscendTheSword(TargetRarity,TargetQuality,TargetMold,Leveling,Enchanting)
 print(TargetRarity,TargetQuality,TargetMold,Leveling,Enchanting)
+    if Leveling == true then
+    SetAscenderMode("Level")
+    task.wait(3)
+    end
+    if Enchanting == true then
+    SetAscenderMode("Enchant")
+    task.wait(3)
+    end
+local SwordInAscender
+for i,v in pairs(game.workspace.Swords:GetChildren())do
+ if v:FindFirstChild("Main") then
+    if (v.Main.Position - game.workspace.Bases[game.Players.LocalPlayer.Name].Ascender.Touched.Position).Magnitude < 5 then
+        SwordInAscender = v
+    end
+ end
+end
+local SwordStats = SwordInAscender.Main.Gui.ItemInfo
+
+    if TargetMold then
+        SetAscenderMode("Mold")
+        repeat wait() until GetCurrentSwordStats(SwordStats,"Mold") == true
+    end
 end
 
 
