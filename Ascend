@@ -1,4 +1,4 @@
-
+if _G.Executed ~= true then
 -- Auto Ascend
 local RarityTarget = _G.TargetRarity
 local QualityTarget = _G.TargetQuality
@@ -346,4 +346,5 @@ while true do
 	end
 
 	task.wait(0.1)
+end
 end
