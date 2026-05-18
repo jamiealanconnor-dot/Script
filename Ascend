@@ -8,7 +8,7 @@ local AscendRarity = _G.RarityEnabled
 local AscendQuality = _G.QualityEnabled
 local AscendMold = _G.MoldEnabled
 
-local LagPreventionTimeToPickupSwords = 1
+local LagPreventionTimeToPickupSwords = _G.PickupSwordTime
 -- Services / references
 local Players = game:GetService("Players")
 local Rep = game:GetService("ReplicatedStorage")
