@@ -1,232 +1,349 @@
-local TweenService = game:GetService("TweenService")
-local Plr = game.Players.LocalPlayer
-local tweenInfo = TweenInfo.new(0.5,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
 
-local Modules = {
-    Rarity = require(game.ReplicatedStorage.Tables.Rarity),
-    Mold = require(game.ReplicatedStorage.Tables.Mold),
-    Quality = require(game.ReplicatedStorage.Tables.Quality)
-}
+-- Auto Ascend
+local RarityTarget = _G.TargetRarity
+local QualityTarget = _G.TargetQuality
+local MoldTarget = _G.TargetMold
 
-local function FindValue(Type, WantedValue)
-    local Module = Modules[Type]
-    if not Module then
-        warn(Type .. " is not a valid module type")
-        return nil
+local AscendRarity = _G.RarityEnabled
+local AscendQuality = _G.QualityEnabled
+local AscendMold = _G.MoldEnabled
+
+local LagPreventionTimeToPickupSwords = 1
+-- Services / references
+local Players = game:GetService("Players")
+local Rep = game:GetService("ReplicatedStorage")
+local plr = Players.LocalPlayer
+local PlrStats = Rep.Stats:WaitForChild(plr.Name)
+local Paper = Rep:WaitForChild("Paper")
+local Remotes = Paper:WaitForChild("Remotes")
+local RemoteFunction = Remotes:WaitForChild("__remotefunction")
+local RemoteEvent = Remotes:WaitForChild("__remoteevent")
+local SwordsFolder = workspace:WaitForChild("Swords")
+
+local RarityModule = require(Rep.Tables.Rarity)
+local QualityModule = require(Rep.Tables.Quality)
+local MoldModule = require(Rep.Tables.Mold)
+
+local enabled = false
+local gui = Instance.new("ScreenGui")
+gui.Name = "ControllerUI"
+gui.ResetOnSpawn = false
+gui.Parent = plr:WaitForChild("PlayerGui")
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 160, 0, 40)
+button.Position = UDim2.new(1, -170, 0.7, 30)
+button.Font = Enum.Font.SourceSansBold
+button.TextScaled = true
+button.TextColor3 = Color3.new(1,1,1)
+button.Parent = gui
+
+local function UpdateUI()
+	local modes = {}
+
+	if AscendRarity then
+		table.insert(modes, "Rarity: "..RarityTarget)
+	end
+
+	if AscendQuality then
+		table.insert(modes, "Quality: "..QualityTarget)
+	end
+
+    if AscendMold then
+	    table.insert(modes, "Mold: "..MoldTarget)
     end
-    for index, data in pairs(Module) do
-        if data.Name == WantedValue then
-            return index
+
+	local modeText
+
+	if #modes == 0 then
+		modeText = "No Modes"
+	else
+		modeText = table.concat(modes, "\n")
+	end
+
+	button.Text =
+		(enabled and "Ascend: Enabled [\n" or "Ascend: Disabled [\n")
+		.. modeText .. "]"
+
+	button.BackgroundColor3 =
+		enabled and Color3.fromRGB(0,170,0)
+		or Color3.fromRGB(170,0,0)
+end
+
+UpdateUI()
+button.MouseButton1Click:Connect(function()
+	enabled = not enabled
+	UpdateUI()
+end)
+button.MouseButton2Click:Connect(function()
+    enabled = false
+    gui:Destroy()
+end)
+
+-- Build reverse rarity lookup
+local RarityIndex = {}
+for index, data in pairs(RarityModule) do
+	RarityIndex[data.Name] = index
+end
+
+local QualityIndex = {}
+for index, data in pairs(QualityModule) do
+	QualityIndex[data.Name] = index
+end
+
+local MoldIndex = {}
+
+for index, data in pairs(MoldModule) do
+	MoldIndex[data.Name] = index
+end
+
+
+local RarityTargetNumber = RarityIndex[RarityTarget]
+local QualityTargetNumber = QualityIndex[QualityTarget]
+local MoldTargetNumber = MoldIndex[MoldTarget]
+
+-- Functions
+local function getSwordRarityFromText(text)
+	local rarityName = text:match("</font>%s*(.+)")
+	return RarityIndex[rarityName]
+end
+
+local function getSwordQualityFromText(text)
+	local qualityName = text:match('">(.-)</font>')
+	return QualityIndex[qualityName]
+end
+
+local function TP(location)
+	RemoteFunction:InvokeServer("Teleport In Base", location)
+	task.wait(0.25)
+end
+
+local function ChangeAscenderMode(mode, pickup)
+	if pickup then
+		RemoteFunction:InvokeServer("Pickup Ascender")
+		return
+	end
+	RemoteEvent:FireServer("Set Ascender Mode", mode)
+	task.wait(1)
+end
+
+local function DropSword(swordId)
+	swordId = tostring(swordId)
+	RemoteEvent:FireServer("Drop Sword", swordId)
+	RemoteEvent:FireServer("Set Hotbar", swordId, "Inventory")
+	task.wait(0.5)
+end
+
+local function GetSwordObject(swordName)
+	return SwordsFolder:FindFirstChild(swordName)
+end
+
+local function GetCurrentSword()
+	return PlrStats.Ascender:GetChildren()[1]
+end
+
+local function GetCurrentSwordRarity()
+	local sword = GetCurrentSword()
+	if not sword then
+		return nil
+	end
+	local swordObj = GetSwordObject(sword.Name)
+	if not swordObj then
+		return nil
+	end
+	local info = swordObj.Main.Gui.ItemInfo
+	return getSwordRarityFromText(info.RarityQuality.Text)
+end
+
+local function GetCurrentSwordQuality()
+	local sword = GetCurrentSword()
+
+	if not sword then
+		return nil
+	end
+
+	local swordObj = GetSwordObject(sword.Name)
+
+	if not swordObj then
+		return nil
+	end
+
+	local info = swordObj.Main.Gui.ItemInfo
+	return getSwordQualityFromText(info.RarityQuality.Text)
+end
+
+local function GetCurrentSwordMold()
+	local sword = GetCurrentSword()
+
+	if not sword then
+		return nil
+	end
+
+	local swordObj = GetSwordObject(sword.Name)
+
+	if not swordObj then
+		return nil
+	end
+
+	local info = swordObj.Main.Gui.ItemInfo
+	local moldName = info.Mold.Text
+
+	return MoldIndex[moldName]
+end
+
+local function GetRarityBankSwordsThatNeedAscending()
+	local swords = {}
+	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+		local swordObj = GetSwordObject(sword.Name)
+		if swordObj then
+			local rarityText = swordObj.Main.Gui.ItemInfo.RarityQuality.Text
+			local rarity = getSwordRarityFromText(rarityText)
+			if rarity and rarity < RarityTargetNumber then
+				table.insert(swords, sword)
+			end
+		end
+	end
+	return swords
+end
+
+local function GetQualityBankSwordsThatNeedAscending()
+	local swords = {}
+
+	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+		local swordObj = GetSwordObject(sword.Name)
+
+		if swordObj then
+			local text = swordObj.Main.Gui.ItemInfo.RarityQuality.Text
+			local quality = getSwordQualityFromText(text)
+
+			if quality and quality < QualityTargetNumber then
+				table.insert(swords, sword)
+			end
+		end
+	end
+
+	return swords
+end
+
+local function GetMoldBankSwordsThatNeedAscending()
+	local swords = {}
+
+	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+		local swordObj = GetSwordObject(sword.Name)
+
+		if swordObj then
+			local moldName = swordObj.Main.Gui.ItemInfo.Mold.Text
+			local mold = MoldIndex[moldName]
+
+			if mold and mold < MoldTargetNumber then
+				table.insert(swords, sword)
+			end
+		end
+	end
+
+	return swords
+end
+
+local function Ascend(type,sword,target,pickup)
+
+end
+
+local function BankSword()
+	local currentSword = GetCurrentSword()
+	ChangeAscenderMode(nil, true)
+	TP("Bank")
+	if currentSword then
+		DropSword(currentSword.Name)
+	end
+end
+
+-- Main loop
+while true do
+	if enabled then
+		-- =========================
+		-- RARITY ASCENDING
+		-- =========================
+
+		if AscendRarity then
+			local swordsToAscend = GetRarityBankSwordsThatNeedAscending()
+			if #swordsToAscend > 0 then
+				local targetSword = swordsToAscend[1]
+				-- Insert sword
+				if #PlrStats.Ascender:GetChildren() == 0 then
+					local swordObj = GetSwordObject(targetSword.Name)
+					if swordObj then
+						plr.Character.HumanoidRootPart.CFrame =
+							swordObj.Main.CFrame + Vector3.new(0, 6, 0)
+						task.wait(LagPreventionTimeToPickupSwords)
+						TP("Ascender")
+						DropSword(targetSword.Name)
+					end
+				end
+				-- Ascend rarity
+				ChangeAscenderMode("Rarity")
+				repeat
+					task.wait(0.1)
+				until (GetCurrentSwordRarity() or 0) >= RarityTargetNumber
+				BankSword()
+			end
+		end
+
+		-- =========================
+		-- QUALITY ASCENDING
+		-- =========================
+
+		if AscendQuality then
+			local swordsToAscend = GetQualityBankSwordsThatNeedAscending()
+			if #swordsToAscend > 0 then
+				local targetSword = swordsToAscend[1]
+				-- Insert sword
+				if #PlrStats.Ascender:GetChildren() == 0 then
+					local swordObj = GetSwordObject(targetSword.Name)
+					if swordObj then
+						plr.Character.HumanoidRootPart.CFrame =
+							swordObj.Main.CFrame + Vector3.new(0, 6, 0)
+						task.wait(LagPreventionTimeToPickupSwords)
+						TP("Ascender")
+						DropSword(targetSword.Name)
+					end
+				end
+				-- Ascend quality
+				ChangeAscenderMode("Quality")
+				repeat
+					task.wait(0.1)
+				until (GetCurrentSwordQuality() or 0) >= QualityTargetNumber
+				BankSword()
+			end
+		end
+
+        -- =========================
+        -- MOLD ASCENDING
+        -- =========================
+
+        if AscendMold then
+	        local swordsToAscend = GetMoldBankSwordsThatNeedAscending()
+	        if #swordsToAscend > 0 then
+		        local targetSword = swordsToAscend[1]
+		        -- Insert sword
+		        if #PlrStats.Ascender:GetChildren() == 0 then
+			        local swordObj = GetSwordObject(targetSword.Name)
+			        if swordObj then
+				        plr.Character.HumanoidRootPart.CFrame =
+				        	swordObj.Main.CFrame + Vector3.new(0, 6, 0)
+				        task.wait(LagPreventionTimeToPickupSwords)
+				        TP("Ascender")
+				        DropSword(targetSword.Name)
+			        end
+		        end
+		        -- Ascend mold
+		        ChangeAscenderMode("Mold")
+		        repeat
+			        task.wait(0.1)
+		        until (GetCurrentSwordMold() or 0) >= MoldTargetNumber
+		        BankSword()
+	        end
         end
-    end
-    return nil
+	end
+
+	task.wait(0.1)
 end
-
-local function Darken(color, amount)
-    return Color3.new(
-        math.clamp(color.R - amount, 0, 1),
-        math.clamp(color.G - amount, 0, 1),
-        math.clamp(color.B - amount, 0, 1)
-    )
-end
-
-local GUI = Instance.new("ScreenGui", game.CoreGui)
-
-local OpenButton = Instance.new("TextButton", GUI)
-OpenButton.Size = UDim2.new(0,25,0,25)
-OpenButton.Position = UDim2.new(1,-25,1,-110)
-OpenButton.Text = "<"
-
-local MainFrame = Instance.new("Frame", GUI)
-MainFrame.Size = UDim2.new(0.5,0,0.6,0)
-MainFrame.Position = UDim2.new(0.25,0,1.35,0)
-MainFrame.BackgroundColor3 = Color3.new(0,0.75,1)
-
-local function CreateFrame(title, color, pos, textbox)
-    local frame = Instance.new("Frame", MainFrame)
-    frame.Size = UDim2.new(1/3,0,0.5,0)
-    frame.Position = pos
-    frame.BackgroundColor3 = color
-    frame.BorderSizePixel = 0
-
-    local label = Instance.new("TextLabel", frame)
-    label.Size = UDim2.new(1,0,0.3,0)
-    label.BackgroundTransparency = 1
-    label.TextScaled = true
-    label.Text = title
-    label.TextColor3 = Color3.new(1,1,1)
-
-    if textbox then
-        local box = Instance.new("TextBox", frame)
-        box.Size = UDim2.new(0.8,0,0.2,0)
-        box.Position = UDim2.new(0.1,0,0.4,0)
-        box.BorderSizePixel = 0
-        box.BackgroundColor3 = Darken(color,0.2)
-        box.Text = textbox
-        box.TextColor3 = Color3.new(1,1,1)
-    end
-
-    return frame
-end
-
-local RarityFrame = CreateFrame(
-    "Rarity",
-    Color3.new(0.75,0,0.75),
-    UDim2.new(0,0,0,0),
-    "Insert Rarity"
-)
-
-local QualityFrame = CreateFrame(
-    "Quality",
-    Color3.new(0.8,0.8,0.3),
-    UDim2.new(1/3,0,0,0),
-    "Insert Quality"
-)
-
-local MoldFrame = CreateFrame(
-    "Mold",
-    Color3.new(0.8,0.8,0.8),
-    UDim2.new(2/3,0,0,0),
-    "Insert Mold"
-)
-
-local LevelFrame = CreateFrame(
-    "Level",
-    Color3.new(0.9,0.4,0.4),
-    UDim2.new(0,0,0.5,0)
-)
-
-local LevelButton = Instance.new("TextButton", LevelFrame)
-LevelButton.Size = UDim2.new(0.2,0,0.2,0)
-LevelButton.Position = UDim2.new(0.4,0,0.4,0)
-LevelButton.BackgroundColor3 = Darken(
-    Color3.new(0.9,0.4,0.4),
-    0.2
-)
-
-LevelButton.Text = "X"
-LevelButton.TextColor3 = Color3.new(1,0,0)
-
-LevelButton.MouseButton1Down:Connect(function()
-    local enabled = LevelButton.Text == "X"
-
-    LevelButton.Text = enabled and "✓" or "X"
-    LevelButton.TextColor3 =
-        enabled and Color3.new(0,1,0)
-        or Color3.new(1,0,0)
-end)
-
-local EnchantFrame = CreateFrame(
-    "Enchant",
-    Color3.new(0.25,0.8,0.8),
-    UDim2.new(2/3,0,0.5,0)
-)
-
-local EnchantButton = Instance.new("TextButton", EnchantFrame)
-EnchantButton.Size = UDim2.new(0.2,0,0.2,0)
-EnchantButton.Position = UDim2.new(0.4,0,0.4,0)
-EnchantButton.BackgroundColor3 = Darken(
-    Color3.new(0.25,0.8,0.8),
-    0.2
-)
-
-EnchantButton.Text = "X"
-EnchantButton.TextColor3 = Color3.new(1,0,0)
-
-EnchantButton.MouseButton1Down:Connect(function()
-    local enabled = EnchantButton.Text == "X"
-
-    EnchantButton.Text = enabled and "✓" or "X"
-    EnchantButton.TextColor3 =
-        enabled and Color3.new(0,1,0)
-        or Color3.new(1,0,0)
-end)
-
-local AscendButton = Instance.new("TextButton", MainFrame)
-AscendButton.Size = UDim2.new(1/4,0,0.3,0)
-AscendButton.Position = UDim2.new(9/24,0,0.6,0)
-AscendButton.Text = "Ascend"
-
-OpenButton.MouseButton2Down:Connect(function()
-    GUI:Destroy()
-end)
-
-OpenButton.MouseButton1Down:Connect(function()
-    local open = OpenButton.Text == "<"
-    OpenButton.Text = open and ">" or "<"
-    TweenService:Create(
-        MainFrame,
-        tweenInfo,
-        {
-            Position = open
-                and UDim2.new(0.25,0,0.35,0)
-                or UDim2.new(0.25,0,1.35,0)
-        }
-    ):Play()
-end)
-
-local function SetAscenderMode(AscendType)
-game.ReplicatedStorage.Paper.Remotes["__remoteevent"]:FireServer("Set Ascender Mode","")
-task.wait(1.5)
-game.ReplicatedStorage.Paper.Remotes["__remoteevent"]:FireServer("Set Ascender Mode",AscendType)
-task.wait(1.5)
-end
-
-local function GetCurrentSwordStats(Sword,WantedStat,TargetStat)
-print(Sword)
-print(WantedStat)
-print(TargetStat)
-local IsHigher = false
-local Value
-if WantedStat == "Rarity" or WantedStat == "Quality" then
-    print("RareQual")
-else
-    print("Mold")
-    repeat wait() until FindValue(WantedStat,Sword[WantedStat].Text) >= FindValue(WantedStat,TargetStat)
-    Value = FindValue(WantedStat,Sword[WantedStat].Text)
-    IsHigher = true
-end
-
-print(Value.." | "..FindValue(WantedStat,TargetStat))
-return IsHigher
-end
-
-local function AscendTheSword(TargetRarity,TargetQuality,TargetMold,Leveling,Enchanting)
-print(TargetRarity,TargetQuality,TargetMold,Leveling,Enchanting)
-    if Leveling == true then
-    SetAscenderMode("Level")
-    task.wait(3)
-    end
-    if Enchanting == true then
-    SetAscenderMode("Enchant")
-    task.wait(3)
-    end
-local SwordInAscender
-for i,v in pairs(game.workspace.Swords:GetChildren())do
- if v:FindFirstChild("Main") then
-    if (v.Main.Position - game.workspace.Bases[game.Players.LocalPlayer.Name].Ascender.Touched.Position).Magnitude < 5 then
-        SwordInAscender = v
-    end
- end
-end
-local SwordStats = SwordInAscender.Main.Gui.ItemInfo
-
-    if TargetMold then
-        SetAscenderMode("Mold")
-        repeat wait() until GetCurrentSwordStats(SwordStats,"Mold",TargetMold) == true
-        print("Ascended Mold Successfully")
-    end
-end
-
-
-AscendButton.MouseButton1Down:Connect(function()
-local TR,TQ,TM = FindValue("Rarity",RarityFrame.TextBox.Text),FindValue("Quality",QualityFrame.TextBox.Text),FindValue("Mold",MoldFrame.TextBox.Text)
-local LV,EN = false,false
-if EnchantButton.Text == "✓" then
-    EN = true
-end
-if LevelButton.Text == "✓" then
-    LV = true
-end
-AscendTheSword(TR,TQ,TM,LV,EN)
-end)
