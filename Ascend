@@ -1,4 +1,5 @@
 if _G.Executed ~= true then
+_G.Executed = true
 -- Auto Ascend
 local RarityTarget = _G.TargetRarity
 local QualityTarget = _G.TargetQuality
