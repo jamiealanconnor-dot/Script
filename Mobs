@@ -1,0 +1,228 @@
+-- EDITABLE SETTINGS
+
+local distanceBelow = 6.5
+local EmergencyHealPercentage = 0.7
+local HealTime = 10
+
+-- STATE
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local Rep = game.ReplicatedStorage
+local RarityModule = require(Rep.Tables.Rarity)
+
+player.CameraMode = Enum.CameraMode.Classic
+player.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
+
+local npcFolder = workspace:WaitForChild("NPCs")
+local objectsFolder = workspace:WaitForChild("Objects")
+
+local character
+local hrp
+
+local enabled = false
+local CurrentTarget = nil
+local ActiveSword = nil
+
+local lastCFrame
+local newDistanceBelow = distanceBelow
+
+local ActiveBomb = false
+
+for i,v in pairs(game.Workspace.Areas:GetChildren())do
+    if v.Map.Decor:FindFirstChild("Damage") then
+        v.Map.Decor.Damage:Destroy()
+    end
+end
+
+objectsFolder.ChildAdded:Connect(function(child)
+	if child.Name == "Bomb" or child.Name == "ExplosionVFX" then
+		ActiveBomb = true
+	end
+end)
+
+objectsFolder.ChildRemoved:Connect(function(child)
+	if child.Name == "ExplosionVFX" then
+        task.wait()
+		ActiveBomb = false
+	end
+end)
+-- CHARACTER BIND
+local function BindCharacter(char)
+	character = char
+	hrp = char:WaitForChild("HumanoidRootPart")
+	lastCFrame = hrp.CFrame
+end
+
+BindCharacter(player.Character or player.CharacterAdded:Wait())
+
+player.CharacterAdded:Connect(BindCharacter)
+-- UI
+local playerGui = player:WaitForChild("PlayerGui")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FarmUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 160, 0, 40)
+button.Position = UDim2.new(1, -170, 0.7, -20)
+button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+button.TextColor3 = Color3.new(1, 1, 1)
+button.TextScaled = true
+button.Font = Enum.Font.SourceSansBold
+button.Parent = screenGui
+
+local function UpdateUI()
+	button.Text = enabled and "Farm: Enabled" or "Farm: Disabled"
+	button.BackgroundColor3 = enabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
+end
+
+UpdateUI()
+
+button.MouseButton1Click:Connect(function()
+	enabled = not enabled
+	if not enabled and hrp then
+		hrp.CFrame = hrp.CFrame + Vector3.new(0, 10, 0)
+	end
+	UpdateUI()
+end)
+
+button.MouseButton2Click:Connect(function()
+    enabled = false
+    screenGui:Destroy()
+end)
+
+local function getIndexByName(tbl, name)
+	for index, data in pairs(tbl) do
+		if data.Name == name then
+			return index
+		end
+	end
+	return nil
+end
+
+-- HELPERS
+local function FindSword()
+	if not character then return nil end
+
+	for _, v in ipairs(character:GetChildren()) do
+		if v:IsA("Tool") then
+			return v
+		end
+	end
+
+	return nil
+end
+
+local function IsValidMob(mob)
+	if not mob or not mob.Parent then return false end
+
+	local hp = mob:FindFirstChild("HP")
+	local health = hp and hp:FindFirstChild("Health")
+    if health.Value == 0 then
+    mob:Destroy()
+        return false
+    end
+	return health and health.Value > 0
+end
+
+local function GetClosestMob()
+	local best
+	local MinRarity = 1
+	for _, mob in ipairs(npcFolder:GetChildren()) do
+		if IsValidMob(mob) then
+			local hitbox = mob:FindFirstChild("Hitbox")
+			if hitbox and hrp then
+				if mob:FindFirstChild("Head") then
+					local MobRarity = getIndexByName(RarityModule,mob.Head.Gui.Main.Info.Rarity.Text)
+					if MobRarity > MinRarity then
+					best = mob
+					MinRarity = MobRarity
+					end
+				end
+			end
+		end
+	end
+	return best
+end
+
+-- NOCOLLIDE (simple + stable)
+RunService.Stepped:Connect(function()
+	if not enabled or not character then return end
+
+	for _, v in ipairs(character:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.CanCollide = false
+		end
+	end
+end)
+
+-- COMBAT
+local lastAttack = 0
+local attackCooldown = 0.15
+
+local function Attack()
+	if not ActiveSword then return end
+	if tick() - lastAttack < attackCooldown then return end
+
+	lastAttack = tick()
+	ActiveSword:Activate()
+end
+
+-- MAIN LOOP
+RunService.Heartbeat:Connect(function()
+	if not enabled then return end
+	if not hrp then return end
+
+	-- refresh sword
+	if not ActiveSword then
+		ActiveSword = FindSword()
+	end
+
+	-- validate / acquire target
+	if not IsValidMob(CurrentTarget) then
+		CurrentTarget = GetClosestMob()
+	end
+
+	if not CurrentTarget then
+		if lastCFrame then
+			hrp.CFrame = lastCFrame
+		end
+		return
+	end
+
+	local hitbox = CurrentTarget:FindFirstChild("Hitbox")
+	hitbox.Transparency = 0.5
+	local hp = CurrentTarget:FindFirstChild("HP")
+	local health = hp and hp:FindFirstChild("Health")
+
+	if not hitbox or not health then
+		CurrentTarget = nil
+		return
+	end
+
+	local targetPos = hitbox.Position - Vector3.new(0, distanceBelow, 0)
+    if ActiveBomb == true then
+    targetPos = hitbox.Position - Vector3.new(100, 50, 100)
+    end
+
+	if player.Character.HP.Health.Value < player.Character.HP.MaxHealth.Value*EmergencyHealPercentage then
+	targetPos = hitbox.Position - Vector3.new(100, 50, 100)
+	local cf = CFrame.lookAt(targetPos, hitbox.Position)
+	lastCFrame = cf
+	hrp.CFrame = cf
+	hrp.AssemblyLinearVelocity = Vector3.zero
+	hrp.AssemblyAngularVelocity = Vector3.zero
+	task.wait(HealTime)
+	end
+
+	local cf = CFrame.lookAt(targetPos, hitbox.Position)
+	lastCFrame = cf
+	hrp.CFrame = cf
+	hrp.AssemblyLinearVelocity = Vector3.zero
+	hrp.AssemblyAngularVelocity = Vector3.zero
+	Attack()
+end)
