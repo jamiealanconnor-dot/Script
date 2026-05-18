@@ -1,3 +1,5 @@
+
+
 if _G.Executed ~= true then
 _G.Executed = true
 -- Auto Ascend
@@ -292,7 +294,7 @@ while true do
 		-- =========================
 		-- QUALITY ASCENDING
 		-- =========================
-
+        if enabled then
 		if AscendQuality then
 			local swordsToAscend = GetQualityBankSwordsThatNeedAscending()
 			if #swordsToAscend > 0 then
@@ -316,11 +318,12 @@ while true do
 				BankSword()
 			end
 		end
+        end
 
         -- =========================
         -- MOLD ASCENDING
         -- =========================
-
+        if enabled then
         if AscendMold then
 	        local swordsToAscend = GetMoldBankSwordsThatNeedAscending()
 	        if #swordsToAscend > 0 then
@@ -344,6 +347,7 @@ while true do
 		        BankSword()
 	        end
         end
+    end
 	end
 
 	task.wait(0.1)
