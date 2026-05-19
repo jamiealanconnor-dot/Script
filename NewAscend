@@ -1,10 +1,11 @@
 
 
+
 --/////////////////////////////--
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.0.2
+--V1.0.3
 
 
 -- Auto Ascend
@@ -293,9 +294,11 @@ while true do
 				if #PlrStats.Ascender:GetChildren() == 0 then
 					local swordObj = GetSwordObject(targetSword.Name)
 					if swordObj then
+                        repeat
 						plr.Character.HumanoidRootPart.CFrame =
-							swordObj.Main.CFrame + Vector3.new(0, 6, 0)
+							swordObj.Main.CFrame + Vector3.new(0, 6, 0);
 						task.wait(LagPreventionTimeToPickupSwords)
+                        until PlrStats.Swords:FindFirstChild(targetSword.Name)
 						TP("Ascender")
 						DropSword(targetSword.Name)
 					end
@@ -322,9 +325,11 @@ while true do
 				if #PlrStats.Ascender:GetChildren() == 0 then
 					local swordObj = GetSwordObject(targetSword.Name)
 					if swordObj then
+                        repeat
 						plr.Character.HumanoidRootPart.CFrame =
-							swordObj.Main.CFrame + Vector3.new(0, 6, 0)
+							swordObj.Main.CFrame + Vector3.new(0, 6, 0);
 						task.wait(LagPreventionTimeToPickupSwords)
+                        until PlrStats.Swords:FindFirstChild(targetSword.Name)
 						TP("Ascender")
 						DropSword(targetSword.Name)
 					end
@@ -352,13 +357,15 @@ while true do
 		        -- Insert sword
 		        if #PlrStats.Ascender:GetChildren() == 0 then
 			        local swordObj = GetSwordObject(targetSword.Name)
-			        if swordObj then
-				        plr.Character.HumanoidRootPart.CFrame =
-				        	swordObj.Main.CFrame + Vector3.new(0, 6, 0)
-				        task.wait(LagPreventionTimeToPickupSwords)
-				        TP("Ascender")
-				        DropSword(targetSword.Name)
-			        end
+					if swordObj then
+                        repeat
+						plr.Character.HumanoidRootPart.CFrame =
+							swordObj.Main.CFrame + Vector3.new(0, 6, 0);
+						task.wait(LagPreventionTimeToPickupSwords)
+                        until PlrStats.Swords:FindFirstChild(targetSword.Name)
+						TP("Ascender")
+						DropSword(targetSword.Name)
+					end
 		        end
 		        -- Ascend mold
 		        ChangeAscenderMode("Mold")
