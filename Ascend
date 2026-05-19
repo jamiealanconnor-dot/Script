@@ -6,7 +6,7 @@
 --/////////////////////////////--
 
 --V1.0.3
-
+--ples update
 
 -- Auto Ascend
 local RarityTarget = _G.TargetRarity
