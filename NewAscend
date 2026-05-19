@@ -1,3 +1,5 @@
+
+
 --/////////////////////////////--
 ----------Main Commit------------
 --/////////////////////////////--
@@ -44,19 +46,19 @@ button.TextScaled = true
 button.TextColor3 = Color3.new(1,1,1)
 button.Parent = gui
 
-local function UpdateUI()
+local function UpdateUI(Rar,Qual,Mol)
 	local modes = {}
 
 	if AscendRarity then
-		table.insert(modes, "Rarity: "..RarityTarget)
+		table.insert(modes, "Rarity: "..RarityTarget.."  ["..Rar.."]")
 	end
 
 	if AscendQuality then
-		table.insert(modes, "Quality: "..QualityTarget)
+		table.insert(modes, "Quality: "..QualityTarget.."  ["..Qual.."]")
 	end
 
     if AscendMold then
-	    table.insert(modes, "Mold: "..MoldTarget)
+	    table.insert(modes, "Mold: "..MoldTarget.."  ["..Mol.."]")
     end
 
 	local modeText
@@ -68,18 +70,18 @@ local function UpdateUI()
 	end
 
 	button.Text =
-		(enabled and "Ascend: Enabled [\n" or "Ascend: Disabled [\n")
-		.. modeText .. "]"
+		(enabled and "Ascend: Enabled \n" or "Ascend: Disabled \n")
+		.. modeText .. ""
 
 	button.BackgroundColor3 =
 		enabled and Color3.fromRGB(0,170,0)
 		or Color3.fromRGB(170,0,0)
 end
 
-UpdateUI()
+UpdateUI(0,0,0)
 button.MouseButton1Click:Connect(function()
 	enabled = not enabled
-	UpdateUI()
+	UpdateUI(0,0,0)
 end)
 button.MouseButton2Click:Connect(function()
     enabled = false
@@ -267,13 +269,18 @@ end
 while true do
 	local RaritySwordsLeft = {}
 	local QualitySwordsLeft = {}
+    local MoldSwordsLeft ={}
 	if AscendRarity then
 	 RaritySwordsLeft = GetRarityBankSwordsThatNeedAscending()
 	end
 	if AscendQuality then
 	 QualitySwordsLeft = GetQualityBankSwordsThatNeedAscending()
 	end
+	if AscendMold then
+	 MoldSwordsLeft = GetMoldBankSwordsThatNeedAscending()
+	end
 	if enabled then
+        UpdateUI(#RaritySwordsLeft,#QualitySwordsLeft,#MoldSwordsLeft)
 		-- =========================
 		-- RARITY ASCENDING
 		-- =========================
