@@ -3,7 +3,7 @@
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.1.3
+--V1.1.4
 
 
 -- Auto Ascend
@@ -159,14 +159,6 @@ local function UpdateUI(Rar, Qual, Mol, Clas, Ench, Lev)
 end
 
 UpdateUI(0,0,0,0,0,0)
-button.MouseButton1Click:Connect(function()
-	enabled = not enabled
-	UpdateUI(0,0,0,0,0,0)
-end)
-button.MouseButton2Click:Connect(function()
-    enabled = false
-    gui:Destroy()
-end)
 
 -- Build reverse rarity lookup
 local RarityIndex = {}
@@ -245,9 +237,12 @@ local function GetCurrentSwordRarity()
 	if not swordObj then
 		return nil
 	end
-    repeat wait() until swordObj:FindFirstChild("Main")
+    if swordObj:FindFirstChild("Main") then
 	local info = swordObj.Main.Gui.ItemInfo
 	return getSwordRarityFromText(info.RarityQuality.Text)
+    else
+        return nil
+    end
 end
 
 local function GetCurrentSwordQuality()
@@ -259,9 +254,12 @@ local function GetCurrentSwordQuality()
 	if not swordObj then
 		return nil
 	end
-    repeat wait() until swordObj:FindFirstChild("Main")
+    if swordObj:FindFirstChild("Main") then
 	local info = swordObj.Main.Gui.ItemInfo
 	return getSwordQualityFromText(info.RarityQuality.Text)
+    else
+        return nil
+    end
 end
 
 local function GetCurrentSwordMold()
@@ -273,10 +271,13 @@ local function GetCurrentSwordMold()
 	if not swordObj then
 		return nil
 	end
-    repeat wait() until swordObj:FindFirstChild("Main")
+    if swordObj:FindFirstChild("Main") then
 	local info = swordObj.Main.Gui.ItemInfo
 	local moldName = info.Mold.Text
 	return MoldIndex[moldName]
+    else
+        return nil
+    end
 end
 
 local function GetCurrentSwordClass()
@@ -288,10 +289,13 @@ local function GetCurrentSwordClass()
 	if not swordObj then
 		return nil
 	end
-    repeat wait() until swordObj:FindFirstChild("Main")
+    if swordObj:FindFirstChild("Main") then
 	local info = swordObj.Main.Gui.ItemInfo
 	local className = info.Class.Text:match("^(%S+)")
 	return ClassIndex[className]
+    else
+        return nil
+    end
 end
 
 local function GetRarityBankSwordsThatNeedAscending()
@@ -299,11 +303,13 @@ local function GetRarityBankSwordsThatNeedAscending()
 	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
 		local swordObj = GetSwordObject(sword.Name)
 		if swordObj then
+            if swordObj:FindFirstChild("Main") then
 			local rarityText = swordObj.Main.Gui.ItemInfo.RarityQuality.Text
 			local rarity = getSwordRarityFromText(rarityText)
 			if rarity and rarity < RarityTargetNumber then
 				table.insert(swords, sword)
 			end
+            end
 		end
 	end
 	return swords
@@ -314,11 +320,13 @@ local function GetQualityBankSwordsThatNeedAscending()
 	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
 		local swordObj = GetSwordObject(sword.Name)
 		if swordObj then
+            if swordObj:FindFirstChild("Main") then
 			local text = swordObj.Main.Gui.ItemInfo.RarityQuality.Text
 			local quality = getSwordQualityFromText(text)
 			if quality and quality < QualityTargetNumber then
 				table.insert(swords, sword)
 			end
+            end
 		end
 	end
 	return swords
@@ -329,11 +337,13 @@ local function GetMoldBankSwordsThatNeedAscending()
 	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
 		local swordObj = GetSwordObject(sword.Name)
 		if swordObj then
+            if swordObj:FindFirstChild("Main") then
 			local moldName = swordObj.Main.Gui.ItemInfo.Mold.Text
 			local mold = MoldIndex[moldName]
 			if mold and mold < MoldTargetNumber then
 				table.insert(swords, sword)
 			end
+            end
 		end
 	end
 	return swords
@@ -344,12 +354,13 @@ local function GetClassBankSwordsThatNeedAscending()
 	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
 		local swordObj = GetSwordObject(sword.Name)
 		if swordObj then
+            if swordObj:FindFirstChild("Main") then
 			local className = swordObj.Main.Gui.ItemInfo.Class.Text:match("^(%S+)")
 			local class = ClassIndex[className]
-            print(className, class, ClassTargetNumber)
 			if class and class < ClassTargetNumber then
 				table.insert(swords, sword)
 			end
+        end
 		end
 	end
 	return swords
@@ -499,8 +510,8 @@ local Tasks = {
     end
 }
 
-while true do
-	if enabled then
+button.MouseButton1Click:Connect(function()
+	enabled = not enabled
     UpdateUI(
 	    #GetRarityBankSwordsThatNeedAscending(),
 	    #GetQualityBankSwordsThatNeedAscending(),
@@ -509,7 +520,23 @@ while true do
 	    GetTimedAscendSwordsLeft("Enchant"),
 	    GetTimedAscendSwordsLeft("Level")
     )
+end)
+button.MouseButton2Click:Connect(function()
+    enabled = false
+    gui:Destroy()
+end)
 
+
+while true do
+    UpdateUI(
+	    #GetRarityBankSwordsThatNeedAscending(),
+	    #GetQualityBankSwordsThatNeedAscending(),
+	    #GetMoldBankSwordsThatNeedAscending(),
+	    #GetClassBankSwordsThatNeedAscending(),
+	    GetTimedAscendSwordsLeft("Enchant"),
+	    GetTimedAscendSwordsLeft("Level")
+    )
+	if enabled then
 		for _, taskName in ipairs(Order) do
 			local taskFunction = Tasks[taskName]
 
