@@ -3,7 +3,7 @@
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.1.0
+--V1.1.2
 
 
 -- Auto Ascend
@@ -36,6 +36,21 @@ local RarityModule = require(Rep.Tables.Rarity)
 local QualityModule = require(Rep.Tables.Quality)
 local MoldModule = require(Rep.Tables.Mold)
 local ClassModule = require(Rep.Tables.Class)
+
+local CompletedTimedAscends = {
+	Enchant = {},
+	Level = {}
+}
+
+local function GetTimedAscendSwordsLeft(mode)
+	local left = 0
+	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+		if not CompletedTimedAscends[mode][sword.Name] then
+			left += 1
+		end
+	end
+	return left
+end
 
 local ButtonSizeMultiplier = 1
 if AscendRarity == true then
@@ -75,7 +90,7 @@ button.Parent = gui
 
 
 
-local function UpdateUI(Rar, Qual, Mol, Clas)
+local function UpdateUI(Rar, Qual, Mol, Clas, Ench, Lev)
 
 	local Counts = {
 		Rarity = Rar,
@@ -115,13 +130,13 @@ local function UpdateUI(Rar, Qual, Mol, Clas)
 		elseif mode == "Enchant" and AscendEnchant then
 			table.insert(
 				modes,
-				"Enchanting: ".._G.EnchantTime.."s"
+				"Enchanting: ".._G.EnchantTime.."s ["..Ench.."]"
 			)
 
 		elseif mode == "Level" and AscendLevel then
 			table.insert(
 				modes,
-				"Leveling: ".._G.LevelTime.."s"
+				"Leveling: ".._G.LevelTime.."s ["..Lev.."]"
 			)
 		end
 	end
@@ -143,10 +158,10 @@ local function UpdateUI(Rar, Qual, Mol, Clas)
 		or Color3.fromRGB(170,0,0)
 end
 
-UpdateUI(0,0,0,0)
+UpdateUI(0,0,0,0,0,0)
 button.MouseButton1Click:Connect(function()
 	enabled = not enabled
-	UpdateUI(0,0,0,0)
+	UpdateUI(0,0,0,0,0,0)
 end)
 button.MouseButton2Click:Connect(function()
     enabled = false
@@ -447,34 +462,36 @@ local Tasks = {
 		return true
 	end,
 
-	Enchant = function()
+    Enchant = function()
 	    if not AscendEnchant then
 	    	return false
 	    end
-	    local swords = PlrStats.Bank:GetChildren()
-	    if #swords == 0 then
-	    	return false
+	    for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+	    	if not CompletedTimedAscends.Enchant[sword.Name] then
+	    		CompletedTimedAscends.Enchant[sword.Name] = true
+	    		InsertSword(sword)
+	    		Ascend("Enchant", _G.EnchantTime)
+	      		BankSword()
+	    		return true
+	    	end
 	    end
-	    local sword = swords[1]
-	    InsertSword(sword)
-	    Ascend("Enchant", _G.EnchantTime)
-	    BankSword()
-	    return true
+	    return false
     end,
 
     Level = function()
 	    if not AscendLevel then
-		    return false
-	    end
-	    local swords = PlrStats.Bank:GetChildren()
-	    if #swords == 0 then
 	    	return false
 	    end
-	    local sword = swords[1]
-	    InsertSword(sword)
-	    Ascend("Level", _G.LevelTime)
-	    BankSword()
-	    return true
+	    for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+	    	if not CompletedTimedAscends.Level[sword.Name] then
+	    		CompletedTimedAscends.Level[sword.Name] = true
+	    		InsertSword(sword)
+	    		Ascend("Level", _G.LevelTime)
+	    		BankSword()
+	    		return true
+	    	end
+	    end
+	    return false
     end
 }
 
@@ -484,7 +501,9 @@ while true do
 	    #GetRarityBankSwordsThatNeedAscending(),
 	    #GetQualityBankSwordsThatNeedAscending(),
 	    #GetMoldBankSwordsThatNeedAscending(),
-	    #GetClassBankSwordsThatNeedAscending()
+	    #GetClassBankSwordsThatNeedAscending(),
+	    GetTimedAscendSwordsLeft("Enchant"),
+	    GetTimedAscendSwordsLeft("Level")
     )
 
 		for _, taskName in ipairs(Order) do
