@@ -1,9 +1,39 @@
+_G.TargetRarity = "Eternal-"
+_G.TargetQuality = "Unlimited"
+_G.TargetMold = "Ammolite"
+_G.TargetClass = "Unbreakable"
+_G.EnchantTime = 1 -- In Seconds
+_G.LevelTime = 1 -- In Seconds
+
+
+_G.RarityEnabled = true
+_G.QualityEnabled = true
+_G.MoldEnabled = true
+_G.ClassEnabled = false
+_G.EnchantEnabled = true
+_G.LevelEnabled = false
+
+_G.Order = {
+	"Rarity",
+	"Quality",
+	"Mold",
+	"Enchant",
+	"Class",
+	"Level"
+}
+
+_G.PickupSwordTime = 0.2
+
+--loadstring(game:HttpGet("https://raw.githubusercontent.com/jamiealanconnor-dot/Script/refs/heads/main/NewAscend"))()
+
+
+
 
 --/////////////////////////////--
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.1.2
+--V1.1.3
 
 
 -- Auto Ascend
@@ -245,6 +275,7 @@ local function GetCurrentSwordRarity()
 	if not swordObj then
 		return nil
 	end
+    repeat wait() until swordObj:FindFirstChild("Main")
 	local info = swordObj.Main.Gui.ItemInfo
 	return getSwordRarityFromText(info.RarityQuality.Text)
 end
@@ -258,6 +289,7 @@ local function GetCurrentSwordQuality()
 	if not swordObj then
 		return nil
 	end
+    repeat wait() until swordObj:FindFirstChild("Main")
 	local info = swordObj.Main.Gui.ItemInfo
 	return getSwordQualityFromText(info.RarityQuality.Text)
 end
@@ -271,6 +303,7 @@ local function GetCurrentSwordMold()
 	if not swordObj then
 		return nil
 	end
+    repeat wait() until swordObj:FindFirstChild("Main")
 	local info = swordObj.Main.Gui.ItemInfo
 	local moldName = info.Mold.Text
 	return MoldIndex[moldName]
@@ -285,6 +318,7 @@ local function GetCurrentSwordClass()
 	if not swordObj then
 		return nil
 	end
+    repeat wait() until swordObj:FindFirstChild("Main")
 	local info = swordObj.Main.Gui.ItemInfo
 	local className = info.Class.Text:match("^(%S+)")
 	return ClassIndex[className]
