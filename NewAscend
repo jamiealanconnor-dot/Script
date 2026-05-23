@@ -1,8 +1,9 @@
+
 --/////////////////////////////--
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.2.0
+--V1.2.1
 
 
 -- Auto Ascend
@@ -26,6 +27,7 @@ local Players = game:GetService("Players")
 local Rep = game:GetService("ReplicatedStorage")
 local plr = Players.LocalPlayer
 local LastAscendChatData = nil
+local LastAscendDataByType = {}
 local WebhookMessages = {}
 local WebhookSwordData = {}
 local PlrStats = Rep.Stats:WaitForChild(plr.Name)
@@ -35,7 +37,6 @@ local RemoteFunction = Remotes:WaitForChild("__remotefunction")
 local RemoteEvent = Remotes:WaitForChild("__remoteevent")
 local SwordsFolder = workspace:WaitForChild("Swords")
 local HttpService = game:GetService("HttpService")
-
 local RarityModule = require(Rep.Tables.Rarity)
 local QualityModule = require(Rep.Tables.Quality)
 local MoldModule = require(Rep.Tables.Mold)
@@ -55,22 +56,16 @@ local function AddCommas(n)
 	local left, num, right = tostring(n):match('^([^%d]*%d)(%d*)(.-)$')
 	return left .. (num:reverse():gsub('(%d%d%d)', '%1,'):reverse()) .. right
 end
+local NotificationsHolder = plr.PlayerGui
+	:WaitForChild("Notifications")
+	:WaitForChild("Holder")
+print("Notification listener connected to:", NotificationsHolder:GetFullName())
 
-local function ReadAscendChatMessage(rawText)
+local function ReadAscendNotification(rawText)
 	local cleanText = CleanRichText(rawText)
-
-	local isSystemMessage = cleanText:find("%[System%]")
-
-	if not isSystemMessage then
-		local username = cleanText:match("@([%w_]+)")
-
-		if username ~= plr.Name then
-			return
-		end
-	end
-
+	print(rawText)
 	local rng = cleanText:match("%((.-)%)")
-
+	print(rng)
 	if rng then
 		local number, suffix = rng:match("1/([%d,%.]+)(%a*)")
 
@@ -90,10 +85,13 @@ local function ReadAscendChatMessage(rawText)
 	local value, upgradeType
 
 	local patterns = {
-		{ pattern = "to%s+([%w%s%+%-]+)%s+Rarity", type = "Rarity" },
-		{ pattern = "to%s+([%w%s%+%-]+)%s+Quality", type = "Quality" },
-		{ pattern = "to%s+([%w%s%+%-]+)%s+Mold", type = "Mold" },
-		{ pattern = "an%s+([%w%s%+%-]+)%s+Quality", type = "Quality" }
+		{ pattern = "You have ascended your sword to%s+([%w%s%+%-]+)%s+Rarity", type = "Rarity" },
+		{ pattern = "You have ascended your sword to%s+([%w%s%+%-]+)%s+Quality", type = "Quality" },
+		{ pattern = "You have ascended your sword to%s+([%w%s%+%-]+)%s+Mold", type = "Mold" },
+
+		{ pattern = "You have gotten an%s+([%w%s%+%-]+)%s+Rarity", type = "Rarity" },
+		{ pattern = "You have gotten an%s+([%w%s%+%-]+)%s+Quality", type = "Quality" },
+		{ pattern = "You have gotten an%s+([%w%s%+%-]+)%s+Mold", type = "Mold" },
 	}
 
 	for _, data in ipairs(patterns) do
@@ -106,27 +104,35 @@ local function ReadAscendChatMessage(rawText)
 	end
 
 	if value and upgradeType and rng then
-		LastAscendChatData = {
-			Type = upgradeType,
-			Value = value,
-			RNG = rng,
-			Time = tick()
+		LastAscendDataByType[upgradeType] = {
+		Type = upgradeType,
+		Value = value,
+		RNG = rng,
+		Time = tick()
 		}
-		print("Stored ascend chat:", upgradeType, value, rng)
+
+		print("Stored notification ascend:", upgradeType, value, rng)
 	else
-		warn("Failed to parse ascend chat:", cleanText)
+		warn("Failed to parse ascend notification:", cleanText)
 	end
 end
 
-local chatScroll = game:GetService("CoreGui")
-	.ExperienceChat.appLayout.chatWindow.scrollingView.bottomLockedScrollView.scrollView
+NotificationsHolder.ChildAdded:Connect(function(notification)
+	print("Notification child added:", notification.Name, notification.ClassName)
 
-chatScroll.ChildAdded:Connect(function(ChatFrame)
-	task.wait(0.1)
+	task.wait(0.5)
 
-	local textMessage = ChatFrame:FindFirstChild("TextMessage")
-	if textMessage and textMessage:FindFirstChild("BodyText") then
-		ReadAscendChatMessage(textMessage.BodyText.Text)
+	local textLabel = notification:FindFirstChild("Label", true)
+
+	if not textLabel then
+		warn("No TextLabel found inside:", notification.Name)
+		return
+	end
+
+	print("Notification text:", textLabel.Text)
+
+	if textLabel:IsA("TextLabel") then
+		ReadAscendNotification(textLabel.Text)
 	end
 end)
 
@@ -546,7 +552,23 @@ local function Ascend(mode, duration)
 	until tick() - start >= duration
 end
 
-local function SendAscendWebhook(TimeTaken, UpgradeType)
+local function WaitForAscendData(upgradeType, timeout)
+	local startWait = tick()
+
+	repeat
+		local data = LastAscendDataByType[upgradeType]
+
+		if data then
+			return data
+		end
+
+		task.wait(0.1)
+	until tick() - startWait >= timeout
+
+	return nil
+end
+
+local function SendAscendWebhook(TimeTaken, UpgradeType, AscendStartTime)
 	if not _G.WebhookURL or _G.WebhookURL == "" then
 		return
 	end
@@ -578,33 +600,40 @@ local function SendAscendWebhook(TimeTaken, UpgradeType)
 
 local swordWebhookData = WebhookSwordData[currentSwordName]
 	
-	if LastAscendChatData
-	and LastAscendChatData.Type == UpgradeType
-	and tick() - LastAscendChatData.Time <= 50 then
+	local ascendData = WaitForAscendData(UpgradeType, 5)
+	if ascendData then
 
 	SendTitle = "⚔️ "..plr.Name.."'s "
-		.. LastAscendChatData.Type
+		.. ascendData.Type
 		.. " Ascended to "
-		.. LastAscendChatData.Value
+		.. ascendData.Value
 		.. " ("
-		.. LastAscendChatData.RNG
+		.. ascendData.RNG
 		.. " RNG)"
 
 	swordWebhookData[UpgradeType] = {
-		Value = LastAscendChatData.Value,
-		RNG = LastAscendChatData.RNG,
+		Value = ascendData.Value,
+		RNG = ascendData.RNG,
 		TimeTaken = tostring(math.floor(TimeTaken * 10) / 10).."s"
 	}
+print("Saved webhook data:", UpgradeType, swordWebhookData[UpgradeType].RNG, swordWebhookData[UpgradeType].TimeTaken)
 end
-
 local function FormatAscendField(baseValue, data)
-	if data and data.RNG then
-		return tostring(baseValue)
-			.. "\nRNG: " .. tostring(data.RNG)
-			.. "\nTime: " .. tostring(data.TimeTaken)
+
+	local text = tostring(baseValue)
+
+	if data then
+
+		if data.RNG then
+			text = text .. "\n🎲 RNG: " .. tostring(data.RNG)
+		end
+
+		if data.TimeTaken then
+			text = text .. "\n⏱ Time: " .. tostring(data.TimeTaken)
+		end
 	end
 
-	return tostring(baseValue)
+	return text
 end
 
 	local Body = HttpService:JSONEncode({
@@ -705,8 +734,7 @@ local Tasks = {
 		repeat
 			task.wait(0.1)
 		until (GetCurrentSwordRarity() or 0) >= RarityTargetNumber
-		task.wait(2.5)
-		SendAscendWebhook(tick() - startTime, "Rarity")
+		SendAscendWebhook(tick() - startTime, "Rarity", startTime)
 		BankSword()
 		return true
 	end,
@@ -726,8 +754,7 @@ local Tasks = {
 		repeat
 			task.wait(0.1)
 		until (GetCurrentSwordQuality() or 0) >= QualityTargetNumber
-		task.wait(2.5)
-		SendAscendWebhook(tick() - startTime, "Quality")
+		SendAscendWebhook(tick() - startTime, "Quality", startTime)
 		BankSword()
 		return true
 	end,
@@ -747,8 +774,7 @@ local Tasks = {
 		repeat
 			task.wait(0.1)
 		until (GetCurrentSwordMold() or 0) >= MoldTargetNumber
-		task.wait(2.5)
-		SendAscendWebhook(tick() - startTime, "Mold")
+		SendAscendWebhook(tick() - startTime, "Mold", startTime)
 		BankSword()
 		return true
 	end,
