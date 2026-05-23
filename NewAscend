@@ -3,7 +3,7 @@
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.1.4
+--V1.1.5
 
 
 -- Auto Ascend
@@ -36,6 +36,7 @@ local RarityModule = require(Rep.Tables.Rarity)
 local QualityModule = require(Rep.Tables.Quality)
 local MoldModule = require(Rep.Tables.Mold)
 local ClassModule = require(Rep.Tables.Class)
+local SwordAscendingOrder = _G.SwordAscendingOrder or "Lowest"
 
 local CompletedTimedAscends = {
 	Enchant = {},
@@ -298,6 +299,21 @@ local function GetCurrentSwordClass()
     end
 end
 
+local function SortSwordsByValue(swords, getValue)
+	table.sort(swords, function(a, b)
+		local aValue = getValue(a) or 0
+		local bValue = getValue(b) or 0
+
+		if SwordAscendingOrder == "Highest" then
+			return aValue > bValue
+		end
+
+		return aValue < bValue
+	end)
+
+	return swords
+end
+
 local function GetRarityBankSwordsThatNeedAscending()
 	local swords = {}
 	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
@@ -312,7 +328,12 @@ local function GetRarityBankSwordsThatNeedAscending()
             end
 		end
 	end
-	return swords
+	return SortSwordsByValue(swords, function(sword)
+	local swordObj = GetSwordObject(sword.Name)
+	if swordObj and swordObj:FindFirstChild("Main") then
+		return getSwordRarityFromText(swordObj.Main.Gui.ItemInfo.RarityQuality.Text)
+	end
+end)
 end
 
 local function GetQualityBankSwordsThatNeedAscending()
@@ -329,7 +350,12 @@ local function GetQualityBankSwordsThatNeedAscending()
             end
 		end
 	end
-	return swords
+	return SortSwordsByValue(swords, function(sword)
+	local swordObj = GetSwordObject(sword.Name)
+	if swordObj and swordObj:FindFirstChild("Main") then
+		return getSwordQualityFromText(swordObj.Main.Gui.ItemInfo.RarityQuality.Text)
+	end
+end)
 end
 
 local function GetMoldBankSwordsThatNeedAscending()
@@ -346,7 +372,12 @@ local function GetMoldBankSwordsThatNeedAscending()
             end
 		end
 	end
-	return swords
+	return SortSwordsByValue(swords, function(sword)
+	local swordObj = GetSwordObject(sword.Name)
+	if swordObj and swordObj:FindFirstChild("Main") then
+		return MoldIndex[swordObj.Main.Gui.ItemInfo.Mold.Text]
+	end
+end)
 end
 
 local function GetClassBankSwordsThatNeedAscending()
@@ -363,7 +394,13 @@ local function GetClassBankSwordsThatNeedAscending()
         end
 		end
 	end
-	return swords
+	return SortSwordsByValue(swords, function(sword)
+	local swordObj = GetSwordObject(sword.Name)
+	if swordObj and swordObj:FindFirstChild("Main") then
+		local className = swordObj.Main.Gui.ItemInfo.Class.Text:match("^(%S+)")
+		return ClassIndex[className]
+	end
+end)
 end
 
 local function BankSword()
