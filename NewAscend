@@ -2,7 +2,7 @@
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.1.5
+--V1.2.0
 
 
 -- Auto Ascend
@@ -26,6 +26,8 @@ local Players = game:GetService("Players")
 local Rep = game:GetService("ReplicatedStorage")
 local plr = Players.LocalPlayer
 local LastAscendChatData = nil
+local WebhookMessages = {}
+local WebhookSwordData = {}
 local PlrStats = Rep.Stats:WaitForChild(plr.Name)
 local Paper = Rep:WaitForChild("Paper")
 local Remotes = Paper:WaitForChild("Remotes")
@@ -499,11 +501,9 @@ end
 
 local function GetWeatherNames()
 	local rawText = Players.LocalPlayer.PlayerGui.Main.Level.WeatherLuck.Text
-	local cleanText = rawText:gsub("<.->", "")
-
 	local weatherNames = {}
 
-	for weatherName in cleanText:gmatch("([^%[]+)%s*%[x[%d%.]+%]") do
+	for weatherName in rawText:gmatch(">([^<>%[]+)%s*%[x[%d%.]+%]</font>") do
 		weatherName = weatherName:gsub("^%s+", ""):gsub("%s+$", "")
 
 		if weatherName ~= "" then
@@ -568,16 +568,44 @@ local function SendAscendWebhook(TimeTaken, UpgradeType)
 	local MolValue = tostring(info.Mold.Text or "Unknown")
 	local SendTitle = "⚔️ Your Sword Ascended! (??? RNG)"
 
-	if LastAscendChatData and LastAscendChatData.Type == UpgradeType and tick() - LastAscendChatData.Time <= 50 then
+	local currentSwordName = sword.Name
 
-	SendTitle = "⚔️ "..game.Players.LocalPlayer.Name.."'s "
+	WebhookSwordData[currentSwordName] = WebhookSwordData[currentSwordName] or {
+		Rarity = {},
+		Quality = {},
+		Mold = {}
+	}
+
+local swordWebhookData = WebhookSwordData[currentSwordName]
+	
+	if LastAscendChatData
+	and LastAscendChatData.Type == UpgradeType
+	and tick() - LastAscendChatData.Time <= 50 then
+
+	SendTitle = "⚔️ "..plr.Name.."'s "
 		.. LastAscendChatData.Type
 		.. " Ascended to "
 		.. LastAscendChatData.Value
 		.. " ("
 		.. LastAscendChatData.RNG
 		.. " RNG)"
+
+	swordWebhookData[UpgradeType] = {
+		Value = LastAscendChatData.Value,
+		RNG = LastAscendChatData.RNG,
+		TimeTaken = tostring(math.floor(TimeTaken * 10) / 10).."s"
+	}
+end
+
+local function FormatAscendField(baseValue, data)
+	if data and data.RNG then
+		return tostring(baseValue)
+			.. "\nRNG: " .. tostring(data.RNG)
+			.. "\nTime: " .. tostring(data.TimeTaken)
 	end
+
+	return tostring(baseValue)
+end
 
 	local Body = HttpService:JSONEncode({
         username = "Abbi's Webhook Bot",
@@ -590,18 +618,31 @@ local function SendAscendWebhook(TimeTaken, UpgradeType)
 				title = SendTitle,
 				color = 5793266,
 				fields = {
-					{ name = "Rarity", value = RarValue, inline = true },
-					{ name = "Quality", value = QualValue, inline = true },
-					{ name = "Mold", value = MolValue, inline = true }
-				}
+	{
+		name = "Rarity",
+		value = FormatAscendField(RarValue, swordWebhookData.Rarity),
+		inline = true
+	},
+	{
+		name = "Quality",
+		value = FormatAscendField(QualValue, swordWebhookData.Quality),
+		inline = true
+	},
+	{
+		name = "Mold",
+		value = FormatAscendField(MolValue, swordWebhookData.Mold),
+		inline = true
+	}
+}
 			},
 			{
 				title = "Additional Info",
 				color = 5793266,
 				fields = {
 					{ name = "Weathers Active", value = GetWeatherNames(), inline = true },
-					{ name = "Total Luck Boost", value = tostring(game:GetService("ReplicatedStorage").Values.Lucks.Detailed.WeatherLuck.Value).."x", inline = true },
-					{ name = "Time Taken", value = tostring(math.floor(TimeTaken*10)/10).."s", inline = true }
+					{ name = "", value = "", inline = true},
+					{ name = "Total Luck Boost", value = tostring(game:GetService("ReplicatedStorage").Values.Lucks.Detailed.WeatherLuck.Value).."x", inline = true }
+					
 				}
 			}
         }
@@ -610,14 +651,36 @@ local function SendAscendWebhook(TimeTaken, UpgradeType)
 local requestFunc = syn and syn.request or http_request or request
 
 if requestFunc then
-	requestFunc({
-		Url = _G.WebhookURL,
-		Method = "POST",
+	local url = _G.WebhookURL .. "?wait=true"
+	local method = "POST"
+
+	local savedMessageId = WebhookMessages[currentSwordName]
+
+	if savedMessageId then
+		url = _G.WebhookURL .. "/messages/" .. savedMessageId
+		method = "PATCH"
+	end
+
+	local response = requestFunc({
+		Url = url,
+		Method = method,
 		Headers = {
 			["Content-Type"] = "application/json"
 		},
 		Body = Body
 	})
+
+	if response and response.Body and method == "POST" then
+		local success, decoded = pcall(function()
+			return HttpService:JSONDecode(response.Body)
+		end)
+
+		if success and decoded and decoded.id then
+			WebhookMessages[currentSwordName] = decoded.id
+		else
+			warn("Webhook sent, but could not save message ID:", response.Body)
+		end
+	end
 end
 end
 
