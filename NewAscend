@@ -1,4 +1,3 @@
-
 --/////////////////////////////--
 ----------Main Commit------------
 --/////////////////////////////--
@@ -21,16 +20,19 @@ local AscendLevel = _G.LevelEnabled
 local Order = _G.Order
 
 local LagPreventionTimeToPickupSwords = _G.PickupSwordTime
+
 -- Services / references
 local Players = game:GetService("Players")
 local Rep = game:GetService("ReplicatedStorage")
 local plr = Players.LocalPlayer
+local LastAscendChatData = nil
 local PlrStats = Rep.Stats:WaitForChild(plr.Name)
 local Paper = Rep:WaitForChild("Paper")
 local Remotes = Paper:WaitForChild("Remotes")
 local RemoteFunction = Remotes:WaitForChild("__remotefunction")
 local RemoteEvent = Remotes:WaitForChild("__remoteevent")
 local SwordsFolder = workspace:WaitForChild("Swords")
+local HttpService = game:GetService("HttpService")
 
 local RarityModule = require(Rep.Tables.Rarity)
 local QualityModule = require(Rep.Tables.Quality)
@@ -42,6 +44,89 @@ local CompletedTimedAscends = {
 	Enchant = {},
 	Level = {}
 }
+
+local function CleanRichText(text)
+	return text:gsub("<.->", "")
+end
+
+local function AddCommas(n)
+	local left, num, right = tostring(n):match('^([^%d]*%d)(%d*)(.-)$')
+	return left .. (num:reverse():gsub('(%d%d%d)', '%1,'):reverse()) .. right
+end
+
+local function ReadAscendChatMessage(rawText)
+	local cleanText = CleanRichText(rawText)
+
+	local isSystemMessage = cleanText:find("%[System%]")
+
+	if not isSystemMessage then
+		local username = cleanText:match("@([%w_]+)")
+
+		if username ~= plr.Name then
+			return
+		end
+	end
+
+	local rng = cleanText:match("%((.-)%)")
+
+	if rng then
+		local number, suffix = rng:match("1/([%d,%.]+)(%a*)")
+
+		if number then
+			local cleanedNumber = number:gsub(",", "")
+			number = tonumber(cleanedNumber)
+
+			if number then
+				rng = string.format("1/%s%s",
+					AddCommas(math.floor(number + 0.5)),
+					suffix or ""
+				)
+			end
+		end
+	end
+
+	local value, upgradeType
+
+	local patterns = {
+		{ pattern = "to%s+([%w%s%+%-]+)%s+Rarity", type = "Rarity" },
+		{ pattern = "to%s+([%w%s%+%-]+)%s+Quality", type = "Quality" },
+		{ pattern = "to%s+([%w%s%+%-]+)%s+Mold", type = "Mold" },
+		{ pattern = "an%s+([%w%s%+%-]+)%s+Quality", type = "Quality" }
+	}
+
+	for _, data in ipairs(patterns) do
+		value = cleanText:match(data.pattern)
+
+		if value then
+			upgradeType = data.type
+			break
+		end
+	end
+
+	if value and upgradeType and rng then
+		LastAscendChatData = {
+			Type = upgradeType,
+			Value = value,
+			RNG = rng,
+			Time = tick()
+		}
+		print("Stored ascend chat:", upgradeType, value, rng)
+	else
+		warn("Failed to parse ascend chat:", cleanText)
+	end
+end
+
+local chatScroll = game:GetService("CoreGui")
+	.ExperienceChat.appLayout.chatWindow.scrollingView.bottomLockedScrollView.scrollView
+
+chatScroll.ChildAdded:Connect(function(ChatFrame)
+	task.wait(0.1)
+
+	local textMessage = ChatFrame:FindFirstChild("TextMessage")
+	if textMessage and textMessage:FindFirstChild("BodyText") then
+		ReadAscendChatMessage(textMessage.BodyText.Text)
+	end
+end)
 
 local function GetTimedAscendSwordsLeft(mode)
 	local left = 0
@@ -412,6 +497,27 @@ local function BankSword()
 	end
 end
 
+local function GetWeatherNames()
+	local rawText = Players.LocalPlayer.PlayerGui.Main.Level.WeatherLuck.Text
+	local cleanText = rawText:gsub("<.->", "")
+
+	local weatherNames = {}
+
+	for weatherName in cleanText:gmatch("([^%[]+)%s*%[x[%d%.]+%]") do
+		weatherName = weatherName:gsub("^%s+", ""):gsub("%s+$", "")
+
+		if weatherName ~= "" then
+			table.insert(weatherNames, weatherName)
+		end
+	end
+
+	if #weatherNames == 0 then
+		return "None"
+	end
+
+	return table.concat(weatherNames, ", ")
+end
+
 --Sword Helper
 local function InsertSword(targetSword)
 	if #PlrStats.Ascender:GetChildren() ~= 0 then
@@ -440,6 +546,85 @@ local function Ascend(mode, duration)
 	until tick() - start >= duration
 end
 
+local function SendAscendWebhook(TimeTaken, UpgradeType)
+	if not _G.WebhookURL or _G.WebhookURL == "" then
+		return
+	end
+
+	local sword = GetCurrentSword()
+	if not sword then
+		return
+	end
+
+	local swordObj = GetSwordObject(sword.Name)
+	if not swordObj or not swordObj:FindFirstChild("Main") then
+		return
+	end
+
+	local info = swordObj.Main.Gui.ItemInfo
+
+	local RarValue = tostring(info.RarityQuality.Text:match("</font>%s*(.+)") or "Unknown")
+	local QualValue = tostring(info.RarityQuality.Text:match('">(.-)</font>') or "Unknown")
+	local MolValue = tostring(info.Mold.Text or "Unknown")
+	local SendTitle = "⚔️ Your Sword Ascended! (??? RNG)"
+
+	if LastAscendChatData and LastAscendChatData.Type == UpgradeType and tick() - LastAscendChatData.Time <= 50 then
+
+	SendTitle = "⚔️ "..game.Players.LocalPlayer.Name.."'s "
+		.. LastAscendChatData.Type
+		.. " Ascended to "
+		.. LastAscendChatData.Value
+		.. " ("
+		.. LastAscendChatData.RNG
+		.. " RNG)"
+	end
+
+	local Body = HttpService:JSONEncode({
+        username = "Abbi's Webhook Bot",
+        avatar_url = "",
+
+        content = "",
+
+        embeds = {
+            {
+				title = SendTitle,
+				color = 5793266,
+				fields = {
+					{ name = "Rarity", value = RarValue, inline = true },
+					{ name = "Quality", value = QualValue, inline = true },
+					{ name = "Mold", value = MolValue, inline = true }
+				}
+			},
+			{
+				title = "Additional Info",
+				color = 5793266,
+				fields = {
+					{ name = "Weathers Active", value = GetWeatherNames(), inline = true },
+					{ name = "Total Luck Boost", value = tostring(game:GetService("ReplicatedStorage").Values.Lucks.Detailed.WeatherLuck.Value).."x", inline = true },
+					{ name = "Time Taken", value = tostring(math.floor(TimeTaken*10)/10).."s", inline = true }
+				}
+			}
+        }
+    })
+
+local requestFunc = syn and syn.request or http_request or request
+
+if requestFunc then
+	requestFunc({
+		Url = _G.WebhookURL,
+		Method = "POST",
+		Headers = {
+			["Content-Type"] = "application/json"
+		},
+		Body = Body
+	})
+end
+end
+
+
+
+
+
 local Tasks = {
 
 	Rarity = function()
@@ -452,10 +637,13 @@ local Tasks = {
 		end
 		local sword = swords[1]
 		InsertSword(sword)
+		local startTime = tick()
 		ChangeAscenderMode("Rarity")
 		repeat
 			task.wait(0.1)
 		until (GetCurrentSwordRarity() or 0) >= RarityTargetNumber
+		task.wait(2.5)
+		SendAscendWebhook(tick() - startTime, "Rarity")
 		BankSword()
 		return true
 	end,
@@ -470,10 +658,13 @@ local Tasks = {
 		end
 		local sword = swords[1]
 		InsertSword(sword)
+		local startTime = tick()
 		ChangeAscenderMode("Quality")
 		repeat
 			task.wait(0.1)
 		until (GetCurrentSwordQuality() or 0) >= QualityTargetNumber
+		task.wait(2.5)
+		SendAscendWebhook(tick() - startTime, "Quality")
 		BankSword()
 		return true
 	end,
@@ -488,10 +679,13 @@ local Tasks = {
 		end
 		local sword = swords[1]
 		InsertSword(sword)
+		local startTime = tick()
 		ChangeAscenderMode("Mold")
 		repeat
 			task.wait(0.1)
 		until (GetCurrentSwordMold() or 0) >= MoldTargetNumber
+		task.wait(2.5)
+		SendAscendWebhook(tick() - startTime, "Mold")
 		BankSword()
 		return true
 	end,
