@@ -1,21 +1,24 @@
 
-
-
 --/////////////////////////////--
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.0.3
---ples update
+--V1.1.5
+
 
 -- Auto Ascend
 local RarityTarget = _G.TargetRarity
 local QualityTarget = _G.TargetQuality
 local MoldTarget = _G.TargetMold
+local ClassTarget = _G.TargetClass
 
 local AscendRarity = _G.RarityEnabled
 local AscendQuality = _G.QualityEnabled
 local AscendMold = _G.MoldEnabled
+local AscendClass = _G.ClassEnabled
+local AscendEnchant = _G.EnchantEnabled
+local AscendLevel = _G.LevelEnabled
+local Order = _G.Order
 
 local LagPreventionTimeToPickupSwords = _G.PickupSwordTime
 -- Services / references
@@ -32,6 +35,43 @@ local SwordsFolder = workspace:WaitForChild("Swords")
 local RarityModule = require(Rep.Tables.Rarity)
 local QualityModule = require(Rep.Tables.Quality)
 local MoldModule = require(Rep.Tables.Mold)
+local ClassModule = require(Rep.Tables.Class)
+local SwordAscendingOrder = _G.SwordAscendingOrder or "Lowest"
+
+local CompletedTimedAscends = {
+	Enchant = {},
+	Level = {}
+}
+
+local function GetTimedAscendSwordsLeft(mode)
+	local left = 0
+	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+		if not CompletedTimedAscends[mode][sword.Name] then
+			left += 1
+		end
+	end
+	return left
+end
+
+local ButtonSizeMultiplier = 1
+if AscendRarity == true then
+    ButtonSizeMultiplier = ButtonSizeMultiplier + 1
+end
+if AscendQuality == true then
+    ButtonSizeMultiplier = ButtonSizeMultiplier + 1
+end
+if AscendMold == true then
+    ButtonSizeMultiplier = ButtonSizeMultiplier + 1
+end
+if AscendClass == true then
+    ButtonSizeMultiplier = ButtonSizeMultiplier + 1
+end
+if AscendEnchant == true then
+    ButtonSizeMultiplier = ButtonSizeMultiplier + 1
+end
+if AscendLevel == true then
+    ButtonSizeMultiplier = ButtonSizeMultiplier + 1
+end
 
 local enabled = false
 local gui = Instance.new("ScreenGui")
@@ -40,27 +80,67 @@ gui.ResetOnSpawn = false
 gui.Parent = plr:WaitForChild("PlayerGui")
 
 local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 160, 0, 40)
+button.Size = UDim2.new(0, 160, 0, 30+(ButtonSizeMultiplier*7.5))
 button.Position = UDim2.new(1, -170, 0.7, 30)
 button.Font = Enum.Font.SourceSansBold
 button.TextScaled = true
 button.TextColor3 = Color3.new(1,1,1)
 button.Parent = gui
 
-local function UpdateUI(Rar,Qual,Mol)
+
+
+
+
+local function UpdateUI(Rar, Qual, Mol, Clas, Ench, Lev)
+
+	local Counts = {
+		Rarity = Rar,
+		Quality = Qual,
+		Mold = Mol,
+		Class = Clas
+	}
+
 	local modes = {}
 
-	if AscendRarity then
-		table.insert(modes, "Rarity: "..RarityTarget.."  ["..Rar.."]")
-	end
+	for _, mode in ipairs(Order) do
 
-	if AscendQuality then
-		table.insert(modes, "Quality: "..QualityTarget.."  ["..Qual.."]")
-	end
+		if mode == "Rarity" and AscendRarity then
+			table.insert(
+				modes,
+				"Rarity: "..RarityTarget.." ["..Counts.Rarity.."]"
+			)
 
-    if AscendMold then
-	    table.insert(modes, "Mold: "..MoldTarget.."  ["..Mol.."]")
-    end
+		elseif mode == "Quality" and AscendQuality then
+			table.insert(
+				modes,
+				"Quality: "..QualityTarget.." ["..Counts.Quality.."]"
+			)
+
+		elseif mode == "Mold" and AscendMold then
+			table.insert(
+				modes,
+				"Mold: "..MoldTarget.." ["..Counts.Mold.."]"
+			)
+
+		elseif mode == "Class" and AscendClass then
+			table.insert(
+				modes,
+				"Class: "..ClassTarget.." ["..Counts.Class.."]"
+			)
+
+		elseif mode == "Enchant" and AscendEnchant then
+			table.insert(
+				modes,
+				"Enchanting: ".._G.EnchantTime.."s ["..Ench.."]"
+			)
+
+		elseif mode == "Level" and AscendLevel then
+			table.insert(
+				modes,
+				"Leveling: ".._G.LevelTime.."s ["..Lev.."]"
+			)
+		end
+	end
 
 	local modeText
 
@@ -71,23 +151,15 @@ local function UpdateUI(Rar,Qual,Mol)
 	end
 
 	button.Text =
-		(enabled and "Ascend: Enabled \n" or "Ascend: Disabled \n")
-		.. modeText .. ""
+		(enabled and "Ascend: Enabled\n" or "Ascend: Disabled\n")
+		.. modeText
 
 	button.BackgroundColor3 =
 		enabled and Color3.fromRGB(0,170,0)
 		or Color3.fromRGB(170,0,0)
 end
 
-UpdateUI(0,0,0)
-button.MouseButton1Click:Connect(function()
-	enabled = not enabled
-	UpdateUI(0,0,0)
-end)
-button.MouseButton2Click:Connect(function()
-    enabled = false
-    gui:Destroy()
-end)
+UpdateUI(0,0,0,0,0,0)
 
 -- Build reverse rarity lookup
 local RarityIndex = {}
@@ -106,10 +178,16 @@ for index, data in pairs(MoldModule) do
 	MoldIndex[data.Name] = index
 end
 
+local ClassIndex = {}
+
+for index, data in pairs(ClassModule) do
+	ClassIndex[data.Name] = index
+end
 
 local RarityTargetNumber = RarityIndex[RarityTarget]
 local QualityTargetNumber = QualityIndex[QualityTarget]
 local MoldTargetNumber = MoldIndex[MoldTarget]
+local ClassTargetNumber = ClassIndex[ClassTarget]
 
 -- Functions
 local function getSwordRarityFromText(text)
@@ -160,44 +238,80 @@ local function GetCurrentSwordRarity()
 	if not swordObj then
 		return nil
 	end
+    if swordObj:FindFirstChild("Main") then
 	local info = swordObj.Main.Gui.ItemInfo
 	return getSwordRarityFromText(info.RarityQuality.Text)
+    else
+        return nil
+    end
 end
 
 local function GetCurrentSwordQuality()
 	local sword = GetCurrentSword()
-
 	if not sword then
 		return nil
 	end
-
 	local swordObj = GetSwordObject(sword.Name)
-
 	if not swordObj then
 		return nil
 	end
-
+    if swordObj:FindFirstChild("Main") then
 	local info = swordObj.Main.Gui.ItemInfo
 	return getSwordQualityFromText(info.RarityQuality.Text)
+    else
+        return nil
+    end
 end
 
 local function GetCurrentSwordMold()
 	local sword = GetCurrentSword()
-
 	if not sword then
 		return nil
 	end
-
 	local swordObj = GetSwordObject(sword.Name)
-
 	if not swordObj then
 		return nil
 	end
-
+    if swordObj:FindFirstChild("Main") then
 	local info = swordObj.Main.Gui.ItemInfo
 	local moldName = info.Mold.Text
-
 	return MoldIndex[moldName]
+    else
+        return nil
+    end
+end
+
+local function GetCurrentSwordClass()
+	local sword = GetCurrentSword()
+	if not sword then
+		return nil
+	end
+	local swordObj = GetSwordObject(sword.Name)
+	if not swordObj then
+		return nil
+	end
+    if swordObj:FindFirstChild("Main") then
+	local info = swordObj.Main.Gui.ItemInfo
+	local className = info.Class.Text:match("^(%S+)")
+	return ClassIndex[className]
+    else
+        return nil
+    end
+end
+
+local function SortSwordsByValue(swords, getValue)
+	table.sort(swords, function(a, b)
+		local aValue = getValue(a) or 0
+		local bValue = getValue(b) or 0
+
+		if SwordAscendingOrder == "Highest" then
+			return aValue > bValue
+		end
+
+		return aValue < bValue
+	end)
+
+	return swords
 end
 
 local function GetRarityBankSwordsThatNeedAscending()
@@ -205,56 +319,88 @@ local function GetRarityBankSwordsThatNeedAscending()
 	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
 		local swordObj = GetSwordObject(sword.Name)
 		if swordObj then
+            if swordObj:FindFirstChild("Main") then
 			local rarityText = swordObj.Main.Gui.ItemInfo.RarityQuality.Text
 			local rarity = getSwordRarityFromText(rarityText)
 			if rarity and rarity < RarityTargetNumber then
 				table.insert(swords, sword)
 			end
+            end
 		end
 	end
-	return swords
+	return SortSwordsByValue(swords, function(sword)
+	local swordObj = GetSwordObject(sword.Name)
+	if swordObj and swordObj:FindFirstChild("Main") then
+		return getSwordRarityFromText(swordObj.Main.Gui.ItemInfo.RarityQuality.Text)
+	end
+end)
 end
 
 local function GetQualityBankSwordsThatNeedAscending()
 	local swords = {}
-
 	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
 		local swordObj = GetSwordObject(sword.Name)
-
 		if swordObj then
+            if swordObj:FindFirstChild("Main") then
 			local text = swordObj.Main.Gui.ItemInfo.RarityQuality.Text
 			local quality = getSwordQualityFromText(text)
-
 			if quality and quality < QualityTargetNumber then
 				table.insert(swords, sword)
 			end
+            end
 		end
 	end
-
-	return swords
+	return SortSwordsByValue(swords, function(sword)
+	local swordObj = GetSwordObject(sword.Name)
+	if swordObj and swordObj:FindFirstChild("Main") then
+		return getSwordQualityFromText(swordObj.Main.Gui.ItemInfo.RarityQuality.Text)
+	end
+end)
 end
 
 local function GetMoldBankSwordsThatNeedAscending()
 	local swords = {}
-
 	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
 		local swordObj = GetSwordObject(sword.Name)
-
 		if swordObj then
+            if swordObj:FindFirstChild("Main") then
 			local moldName = swordObj.Main.Gui.ItemInfo.Mold.Text
 			local mold = MoldIndex[moldName]
-
 			if mold and mold < MoldTargetNumber then
 				table.insert(swords, sword)
 			end
+            end
 		end
 	end
-
-	return swords
+	return SortSwordsByValue(swords, function(sword)
+	local swordObj = GetSwordObject(sword.Name)
+	if swordObj and swordObj:FindFirstChild("Main") then
+		return MoldIndex[swordObj.Main.Gui.ItemInfo.Mold.Text]
+	end
+end)
 end
 
-local function Ascend(type,sword,target,pickup)
-
+local function GetClassBankSwordsThatNeedAscending()
+	local swords = {}
+	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+		local swordObj = GetSwordObject(sword.Name)
+		if swordObj then
+            if swordObj:FindFirstChild("Main") then
+			local className = swordObj.Main.Gui.ItemInfo.Class.Text:match("^(%S+)")
+			local class = ClassIndex[className]
+			if class and class < ClassTargetNumber then
+				table.insert(swords, sword)
+			end
+        end
+		end
+	end
+	return SortSwordsByValue(swords, function(sword)
+	local swordObj = GetSwordObject(sword.Name)
+	if swordObj and swordObj:FindFirstChild("Main") then
+		local className = swordObj.Main.Gui.ItemInfo.Class.Text:match("^(%S+)")
+		return ClassIndex[className]
+	end
+end)
 end
 
 local function BankSword()
@@ -266,119 +412,181 @@ local function BankSword()
 	end
 end
 
--- Main loop
+--Sword Helper
+local function InsertSword(targetSword)
+	if #PlrStats.Ascender:GetChildren() ~= 0 then
+		return true
+	end
+	local swordObj = GetSwordObject(targetSword.Name)
+
+	if not swordObj then
+		return false
+	end
+	repeat
+		plr.Character.HumanoidRootPart.CFrame =
+			swordObj.Main.CFrame + Vector3.new(0, 6, 0)
+		task.wait(LagPreventionTimeToPickupSwords)
+	until PlrStats.Swords:FindFirstChild(targetSword.Name)
+	TP("Ascender")
+	DropSword(targetSword.Name)
+	return true
+end
+
+local function Ascend(mode, duration)
+	ChangeAscenderMode(mode)
+	local start = tick()
+	repeat
+		task.wait(0.1)
+	until tick() - start >= duration
+end
+
+local Tasks = {
+
+	Rarity = function()
+		if not AscendRarity or not RarityTargetNumber then
+			return false
+		end
+		local swords = GetRarityBankSwordsThatNeedAscending()
+		if #swords == 0 then
+			return false
+		end
+		local sword = swords[1]
+		InsertSword(sword)
+		ChangeAscenderMode("Rarity")
+		repeat
+			task.wait(0.1)
+		until (GetCurrentSwordRarity() or 0) >= RarityTargetNumber
+		BankSword()
+		return true
+	end,
+
+	Quality = function()
+		if not AscendQuality or not QualityTargetNumber then
+			return false
+		end
+		local swords = GetQualityBankSwordsThatNeedAscending()
+		if #swords == 0 then
+			return false
+		end
+		local sword = swords[1]
+		InsertSword(sword)
+		ChangeAscenderMode("Quality")
+		repeat
+			task.wait(0.1)
+		until (GetCurrentSwordQuality() or 0) >= QualityTargetNumber
+		BankSword()
+		return true
+	end,
+
+	Mold = function()
+		if not AscendMold or not MoldTargetNumber then
+			return false
+		end
+		local swords = GetMoldBankSwordsThatNeedAscending()
+		if #swords == 0 then
+			return false
+		end
+		local sword = swords[1]
+		InsertSword(sword)
+		ChangeAscenderMode("Mold")
+		repeat
+			task.wait(0.1)
+		until (GetCurrentSwordMold() or 0) >= MoldTargetNumber
+		BankSword()
+		return true
+	end,
+
+	Class = function()
+		if not AscendClass or not ClassTargetNumber then
+			return false
+		end
+		local swords = GetClassBankSwordsThatNeedAscending()
+		if #swords == 0 then
+			return false
+		end
+		local sword = swords[1]
+		InsertSword(sword)
+		ChangeAscenderMode("Class")
+		repeat
+			task.wait(0.1)
+		until (GetCurrentSwordClass() or 0) >= ClassTargetNumber
+		BankSword()
+		return true
+	end,
+
+    Enchant = function()
+	    if not AscendEnchant then
+	    	return false
+	    end
+	    for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+	    	if not CompletedTimedAscends.Enchant[sword.Name] then
+	    		CompletedTimedAscends.Enchant[sword.Name] = true
+	    		InsertSword(sword)
+	    		Ascend("Enchant", _G.EnchantTime)
+	      		BankSword()
+	    		return true
+	    	end
+	    end
+	    return false
+    end,
+
+    Level = function()
+	    if not AscendLevel then
+	    	return false
+	    end
+	    for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+	    	if not CompletedTimedAscends.Level[sword.Name] then
+	    		CompletedTimedAscends.Level[sword.Name] = true
+	    		InsertSword(sword)
+	    		Ascend("Level", _G.LevelTime)
+	    		BankSword()
+	    		return true
+	    	end
+	    end
+	    return false
+    end
+}
+
+button.MouseButton1Click:Connect(function()
+	enabled = not enabled
+    UpdateUI(
+	    #GetRarityBankSwordsThatNeedAscending(),
+	    #GetQualityBankSwordsThatNeedAscending(),
+	    #GetMoldBankSwordsThatNeedAscending(),
+	    #GetClassBankSwordsThatNeedAscending(),
+	    GetTimedAscendSwordsLeft("Enchant"),
+	    GetTimedAscendSwordsLeft("Level")
+    )
+end)
+button.MouseButton2Click:Connect(function()
+    enabled = false
+    gui:Destroy()
+end)
+
+
 while true do
-	local RaritySwordsLeft = {}
-	local QualitySwordsLeft = {}
-    local MoldSwordsLeft ={}
-	if AscendRarity then
-	 RaritySwordsLeft = GetRarityBankSwordsThatNeedAscending()
-	end
-	if AscendQuality then
-	 QualitySwordsLeft = GetQualityBankSwordsThatNeedAscending()
-	end
-	if AscendMold then
-	 MoldSwordsLeft = GetMoldBankSwordsThatNeedAscending()
-	end
+    UpdateUI(
+	    #GetRarityBankSwordsThatNeedAscending(),
+	    #GetQualityBankSwordsThatNeedAscending(),
+	    #GetMoldBankSwordsThatNeedAscending(),
+	    #GetClassBankSwordsThatNeedAscending(),
+	    GetTimedAscendSwordsLeft("Enchant"),
+	    GetTimedAscendSwordsLeft("Level")
+    )
 	if enabled then
-        UpdateUI(#RaritySwordsLeft,#QualitySwordsLeft,#MoldSwordsLeft)
-		-- =========================
-		-- RARITY ASCENDING
-		-- =========================
+		for _, taskName in ipairs(Order) do
+			local taskFunction = Tasks[taskName]
 
-		if AscendRarity then
-			local swordsToAscend = GetRarityBankSwordsThatNeedAscending()
-			if #swordsToAscend > 0 then
-				local targetSword = swordsToAscend[1]
-				-- Insert sword
-				if #PlrStats.Ascender:GetChildren() == 0 then
-					local swordObj = GetSwordObject(targetSword.Name)
-					if swordObj then
-                        repeat
-						plr.Character.HumanoidRootPart.CFrame =
-							swordObj.Main.CFrame + Vector3.new(0, 6, 0);
-						task.wait(LagPreventionTimeToPickupSwords)
-                        until PlrStats.Swords:FindFirstChild(targetSword.Name)
-						TP("Ascender")
-						DropSword(targetSword.Name)
-					end
-				end
-				-- Ascend rarity
-				ChangeAscenderMode("Rarity")
-				repeat
-					task.wait(0.1)
-				until (GetCurrentSwordRarity() or 0) >= RarityTargetNumber
-				BankSword()
-			end
-		end
+            if taskFunction then
+	            local completed = taskFunction()
 
-		-- =========================
-		-- QUALITY ASCENDING
-		-- =========================
-        if enabled then
-		if #RaritySwordsLeft == 0 then
-		if AscendQuality then
-			local swordsToAscend = GetQualityBankSwordsThatNeedAscending()
-			if #swordsToAscend > 0 then
-				local targetSword = swordsToAscend[1]
-				-- Insert sword
-				if #PlrStats.Ascender:GetChildren() == 0 then
-					local swordObj = GetSwordObject(targetSword.Name)
-					if swordObj then
-                        repeat
-						plr.Character.HumanoidRootPart.CFrame =
-							swordObj.Main.CFrame + Vector3.new(0, 6, 0);
-						task.wait(LagPreventionTimeToPickupSwords)
-                        until PlrStats.Swords:FindFirstChild(targetSword.Name)
-						TP("Ascender")
-						DropSword(targetSword.Name)
-					end
-				end
-				-- Ascend quality
-				ChangeAscenderMode("Quality")
-				repeat
-					task.wait(0.1)
-				until (GetCurrentSwordQuality() or 0) >= QualityTargetNumber
-				BankSword()
-			end
+	            if completed then
+		            break
+	            end
+            else
+	            warn("Invalid task in Order table:", taskName)
+            end
 		end
-		end
-        end
-
-        -- =========================
-        -- MOLD ASCENDING
-        -- =========================
-        if enabled then
-		if #QualitySwordsLeft == 0 then
-        if AscendMold then
-	        local swordsToAscend = GetMoldBankSwordsThatNeedAscending()
-	        if #swordsToAscend > 0 then
-		        local targetSword = swordsToAscend[1]
-		        -- Insert sword
-		        if #PlrStats.Ascender:GetChildren() == 0 then
-			        local swordObj = GetSwordObject(targetSword.Name)
-					if swordObj then
-                        repeat
-						plr.Character.HumanoidRootPart.CFrame =
-							swordObj.Main.CFrame + Vector3.new(0, 6, 0);
-						task.wait(LagPreventionTimeToPickupSwords)
-                        until PlrStats.Swords:FindFirstChild(targetSword.Name)
-						TP("Ascender")
-						DropSword(targetSword.Name)
-					end
-		        end
-		        -- Ascend mold
-		        ChangeAscenderMode("Mold")
-		        repeat
-			        task.wait(0.1)
-		        until (GetCurrentSwordMold() or 0) >= MoldTargetNumber
-		        BankSword()
-	        end
-        end
-		end
-    	end
 	end
-
 	task.wait(0.1)
 end
---End Of Script
