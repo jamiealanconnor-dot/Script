@@ -74,10 +74,15 @@ local function ReadAscendNotification(rawText)
 			number = tonumber(cleanedNumber)
 
 			if number then
-				rng = string.format("1/%s%s",
-					AddCommas(math.floor(number + 0.5)),
-					suffix or ""
-				)
+
+				-- Keep decimal precision for suffix values like M/B/T
+				if suffix and suffix ~= "" then
+					rng = string.format("1/%.2f%s", number, suffix)
+
+				-- Normal comma formatting for regular numbers
+				else
+					rng = "1/" .. AddCommas(math.floor(number + 0.5))
+				end
 			end
 		end
 	end
