@@ -1,9 +1,8 @@
-
 --/////////////////////////////--
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.2.1
+--V1.2.2
 
 
 -- Auto Ascend
@@ -46,6 +45,12 @@ local SwordAscendingOrder = _G.SwordAscendingOrder or "Lowest"
 local CompletedTimedAscends = {
 	Enchant = {},
 	Level = {}
+}
+
+local AscendNotificationQueue = {
+	Rarity = {},
+	Quality = {},
+	Mold = {}
 }
 
 local function CleanRichText(text)
@@ -109,12 +114,12 @@ local function ReadAscendNotification(rawText)
 	end
 
 	if value and upgradeType and rng then
-		LastAscendDataByType[upgradeType] = {
+	table.insert(AscendNotificationQueue[upgradeType], {
 		Type = upgradeType,
 		Value = value,
 		RNG = rng,
 		Time = tick()
-		}
+	})
 
 		print("Stored notification ascend:", upgradeType, value, rng)
 	else
@@ -557,14 +562,19 @@ local function Ascend(mode, duration)
 	until tick() - start >= duration
 end
 
-local function WaitForAscendData(upgradeType, timeout)
+local function WaitForAscendData(upgradeType, wantedValue, timeout)
 	local startWait = tick()
 
 	repeat
-		local data = LastAscendDataByType[upgradeType]
+		local queue = AscendNotificationQueue[upgradeType]
 
-		if data then
-			return data
+		for i = #queue, 1, -1 do
+			local data = queue[i]
+
+			if data.Value == wantedValue then
+				table.remove(queue, i)
+				return data
+			end
 		end
 
 		task.wait(0.1)
@@ -605,7 +615,17 @@ local function SendAscendWebhook(TimeTaken, UpgradeType, AscendStartTime)
 
 local swordWebhookData = WebhookSwordData[currentSwordName]
 	
-	local ascendData = WaitForAscendData(UpgradeType, 5)
+	local WantedValue
+
+	if UpgradeType == "Rarity" then
+		WantedValue = RarValue
+	elseif UpgradeType == "Quality" then
+		WantedValue = QualValue
+	elseif UpgradeType == "Mold" then
+		WantedValue = MolValue
+	end
+
+local ascendData = WaitForAscendData(UpgradeType, WantedValue, 5)
 	if ascendData then
 
 	SendTitle = "⚔️ "..plr.Name.."'s "
@@ -735,6 +755,7 @@ local Tasks = {
 		local sword = swords[1]
 		InsertSword(sword)
 		local startTime = tick()
+		LastAscendDataByType["Rarity"] = nil
 		ChangeAscenderMode("Rarity")
 		repeat
 			task.wait(0.1)
@@ -755,6 +776,7 @@ local Tasks = {
 		local sword = swords[1]
 		InsertSword(sword)
 		local startTime = tick()
+		LastAscendDataByType["Quality"] = nil
 		ChangeAscenderMode("Quality")
 		repeat
 			task.wait(0.1)
@@ -775,6 +797,7 @@ local Tasks = {
 		local sword = swords[1]
 		InsertSword(sword)
 		local startTime = tick()
+		LastAscendDataByType["Mold"] = nil
 		ChangeAscenderMode("Mold")
 		repeat
 			task.wait(0.1)
