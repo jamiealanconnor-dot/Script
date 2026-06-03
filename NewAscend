@@ -2,7 +2,7 @@
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.2.2
+--V1.3.0
 
 
 -- Auto Ascend
@@ -17,7 +17,14 @@ local AscendMold = _G.MoldEnabled
 local AscendClass = _G.ClassEnabled
 local AscendEnchant = _G.EnchantEnabled
 local AscendLevel = _G.LevelEnabled
-local Order = _G.Order
+local Order = _G.Order or {
+	"Rarity",
+	"Quality",
+	"Mold",
+	"Class",
+	"Enchant",
+	"Level"
+}
 
 local LagPreventionTimeToPickupSwords = _G.PickupSwordTime
 
@@ -177,94 +184,134 @@ if AscendLevel == true then
 end
 
 local enabled = false
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "ControllerUI"
 gui.ResetOnSpawn = false
 gui.Parent = plr:WaitForChild("PlayerGui")
 
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 160, 0, 30+(ButtonSizeMultiplier*7.5))
-button.Position = UDim2.new(1, -170, 0.7, 30)
-button.Font = Enum.Font.SourceSansBold
-button.TextScaled = true
-button.TextColor3 = Color3.new(1,1,1)
-button.Parent = gui
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 540)
+frame.Position = UDim2.new(1, -280, 0.5, -180)
+--frame.Size = UDim2.new(0, 430, 0, 410)
+--frame.Position = UDim2.new(1, -450, 0.5, -180)
+frame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+frame.BorderSizePixel = 1
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 32)
+title.BackgroundTransparency = 1
+title.Text = "Auto Ascender"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 22
+title.Parent = frame
+local AllSuggestionButtons = {}
+
+local minimizedButton = Instance.new("TextButton")
+minimizedButton.Size = UDim2.new(0, 42, 0, 42)
+minimizedButton.Position = UDim2.new(1, -50, 0.7, -21)
+minimizedButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+minimizedButton.BorderColor3 = Color3.fromRGB(255,255,255)
+minimizedButton.BorderSizePixel = 1
+minimizedButton.TextColor3 = Color3.fromRGB(255,255,255)
+minimizedButton.Font = Enum.Font.SourceSansBold
+minimizedButton.TextSize = 18
+minimizedButton.Text = "ASC"
+minimizedButton.Visible = false
+minimizedButton.Parent = gui
+
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 24, 0, 24)
+minimizeButton.Position = UDim2.new(1, -56, 0, 4)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(25,25,25)
+minimizeButton.BorderColor3 = Color3.fromRGB(255,255,255)
+minimizeButton.BorderSizePixel = 1
+minimizeButton.TextColor3 = Color3.fromRGB(255,255,255)
+minimizeButton.Font = Enum.Font.SourceSansBold
+minimizeButton.TextSize = 18
+minimizeButton.Text = "-"
+minimizeButton.Parent = frame
+
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 24, 0, 24)
+closeButton.Position = UDim2.new(1, -28, 0, 4)
+closeButton.BackgroundColor3 = Color3.fromRGB(80,0,0)
+closeButton.BorderColor3 = Color3.fromRGB(255,255,255)
+closeButton.BorderSizePixel = 1
+closeButton.TextColor3 = Color3.fromRGB(255,255,255)
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.TextSize = 18
+closeButton.Text = "X"
+closeButton.Parent = frame
 
 
+local function HideAllSuggestions()
+	for _, btn in ipairs(AllSuggestionButtons) do
+		btn.Visible = false
+	end
+end
 
+local function MinimizeUI()
+	HideAllSuggestions()
+	frame.Visible = false
+	minimizedButton.Visible = true
+end
 
+local function RestoreUI()
+	minimizedButton.Visible = false
+	frame.Visible = true
+end
 
-local function UpdateUI(Rar, Qual, Mol, Clas, Ench, Lev)
+minimizeButton.MouseButton1Click:Connect(function()
+	MinimizeUI()
+end)
 
-	local Counts = {
-		Rarity = Rar,
-		Quality = Qual,
-		Mold = Mol,
-		Class = Clas
-	}
+minimizedButton.MouseButton1Click:Connect(function()
+	RestoreUI()
+end)
 
-	local modes = {}
+closeButton.MouseButton1Click:Connect(function()
+	enabled = false
+	gui:Destroy()
+end)
 
-	for _, mode in ipairs(Order) do
+local function GetMatches(input, options, limit)
+	local matches = {}
 
-		if mode == "Rarity" and AscendRarity then
-			table.insert(
-				modes,
-				"Rarity: "..RarityTarget.." ["..Counts.Rarity.."]"
-			)
+	if not input or input == "" or not options then
+		return matches
+	end
 
-		elseif mode == "Quality" and AscendQuality then
-			table.insert(
-				modes,
-				"Quality: "..QualityTarget.." ["..Counts.Quality.."]"
-			)
+	input = input:lower()
 
-		elseif mode == "Mold" and AscendMold then
-			table.insert(
-				modes,
-				"Mold: "..MoldTarget.." ["..Counts.Mold.."]"
-			)
-
-		elseif mode == "Class" and AscendClass then
-			table.insert(
-				modes,
-				"Class: "..ClassTarget.." ["..Counts.Class.."]"
-			)
-
-		elseif mode == "Enchant" and AscendEnchant then
-			table.insert(
-				modes,
-				"Enchanting: ".._G.EnchantTime.."s ["..Ench.."]"
-			)
-
-		elseif mode == "Level" and AscendLevel then
-			table.insert(
-				modes,
-				"Leveling: ".._G.LevelTime.."s ["..Lev.."]"
-			)
+	for _, name in ipairs(options) do
+		if name:lower():sub(1, #input) == input then
+			table.insert(matches, name)
 		end
 	end
 
-	local modeText
-
-	if #modes == 0 then
-		modeText = "No Modes"
-	else
-		modeText = table.concat(modes, "\n")
-	end
-
-	button.Text =
-		(enabled and "Ascend: Enabled\n" or "Ascend: Disabled\n")
-		.. modeText
-
-	button.BackgroundColor3 =
-		enabled and Color3.fromRGB(0,170,0)
-		or Color3.fromRGB(170,0,0)
+	return matches
 end
 
-UpdateUI(0,0,0,0,0,0)
+local function GetNamesFromModule(module)
+	local names = {}
 
--- Build reverse rarity lookup
+	for _, data in pairs(module) do
+		if data.Name then
+			table.insert(names, data.Name)
+		end
+	end
+
+	table.sort(names, function(a, b)
+		return a:lower() < b:lower()
+	end)
+
+	return names
+end
+
 local RarityIndex = {}
 for index, data in pairs(RarityModule) do
 	RarityIndex[data.Name] = index
@@ -276,13 +323,11 @@ for index, data in pairs(QualityModule) do
 end
 
 local MoldIndex = {}
-
 for index, data in pairs(MoldModule) do
 	MoldIndex[data.Name] = index
 end
 
 local ClassIndex = {}
-
 for index, data in pairs(ClassModule) do
 	ClassIndex[data.Name] = index
 end
@@ -291,6 +336,273 @@ local RarityTargetNumber = RarityIndex[RarityTarget]
 local QualityTargetNumber = QualityIndex[QualityTarget]
 local MoldTargetNumber = MoldIndex[MoldTarget]
 local ClassTargetNumber = ClassIndex[ClassTarget]
+
+local TargetOptions = {
+	Rarity = GetNamesFromModule(RarityModule),
+	Quality = GetNamesFromModule(QualityModule),
+	Mold = GetNamesFromModule(MoldModule),
+	Class = GetNamesFromModule(ClassModule)
+}
+
+local function MakeNumberBox(labelText, defaultText, y, callback)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 90, 0, 28)
+	label.Position = UDim2.new(0, 10, 0, y)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = Color3.fromRGB(255,255,255)
+	label.Font = Enum.Font.SourceSans
+	label.TextSize = 16
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
+
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(0, 140, 0, 28)
+	box.Position = UDim2.new(0, 105, 0, y)
+	box.BackgroundColor3 = Color3.fromRGB(20,20,20)
+	box.BorderColor3 = Color3.fromRGB(255,255,255)
+	box.BorderSizePixel = 1
+	box.Text = tostring(defaultText or "")
+	box.PlaceholderText = labelText
+	box.TextColor3 = Color3.fromRGB(255,255,255)
+	box.PlaceholderColor3 = Color3.fromRGB(150,150,150)
+	box.Font = Enum.Font.SourceSans
+	box.TextSize = 15
+	box.ClearTextOnFocus = false
+	box.Parent = frame
+
+	box.FocusLost:Connect(function()
+		local num = tonumber(box.Text)
+
+		if num then
+			callback(num)
+			box.Text = tostring(num)
+		else
+			box.Text = tostring(defaultText or "")
+		end
+	end)
+
+	return box
+end
+
+local function MakeTextBox(labelText, defaultText, y, options, callback)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 90, 0, 28)
+	label.Position = UDim2.new(0, 10, 0, y)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = Color3.fromRGB(255,255,255)
+	label.Font = Enum.Font.SourceSans
+	label.TextSize = 16
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
+
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(0, 140, 0, 28)
+	box.Position = UDim2.new(0, 105, 0, y)
+	box.BackgroundColor3 = Color3.fromRGB(20,20,20)
+	box.BorderColor3 = Color3.fromRGB(255,255,255)
+	box.BorderSizePixel = 1
+	box.Text = defaultText or ""
+	box.PlaceholderText = labelText
+	box.TextColor3 = Color3.fromRGB(255,255,255)
+	box.PlaceholderColor3 = Color3.fromRGB(150,150,150)
+	box.Font = Enum.Font.SourceSans
+	box.TextSize = 15
+	box.ClearTextOnFocus = false
+	box.Parent = frame
+
+
+	local suggestionButtons = {}
+	local currentSuggestion = nil
+
+	for i = 1, 4 do
+		local s = Instance.new("TextButton")
+		s.Size = UDim2.new(0, 150, 0, 22)
+		s.Position = UDim2.new(0, 265, 0, y + ((i - 1) * 24))
+		s.BackgroundColor3 = Color3.fromRGB(25,25,25)
+		s.BorderColor3 = Color3.fromRGB(255,255,255)
+		s.BorderSizePixel = 1
+		s.TextColor3 = Color3.fromRGB(220,220,220)
+		s.Font = Enum.Font.SourceSans
+		s.BackgroundTransparency = 0.2
+		s.TextSize = 13
+		s.Text = ""
+		s.Visible = false
+		s.Parent = frame
+
+		s.MouseButton1Click:Connect(function()
+			box.Text = s.Text
+			currentSuggestion = s.Text
+			HideAllSuggestions()
+			callback(box.Text, box)
+		end)
+
+		table.insert(suggestionButtons, s)
+		table.insert(AllSuggestionButtons, s)
+	end
+
+local function updateSuggestion()
+	local matches = GetMatches(box.Text, options, 4)
+	currentSuggestion = matches[1]
+
+	for i, btn in ipairs(suggestionButtons) do
+		if matches[i] and matches[i] ~= box.Text and box.Text ~= "" then
+			btn.Text = matches[i]
+			btn.Visible = true
+		else
+			btn.Visible = false
+		end
+	end
+end
+
+	box.Focused:Connect(function()
+		HideAllSuggestions()
+		updateSuggestion()
+	end)
+
+	box:GetPropertyChangedSignal("Text"):Connect(updateSuggestion)
+
+	box.FocusLost:Connect(function()
+		task.wait(0.15)
+		HideAllSuggestions()
+		callback(box.Text, box)
+	end)
+
+	return box
+end
+local ToggleButtons = {}
+
+local ToggleButtons = {}
+
+local function MakeToggle(labelText, defaultValue, y, callback)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(0, 235, 0, 28)
+	button.Position = UDim2.new(0, 10, 0, y)
+	button.BorderColor3 = Color3.fromRGB(255,255,255)
+	button.BorderSizePixel = 1
+	button.TextColor3 = Color3.fromRGB(255,255,255)
+	button.Font = Enum.Font.SourceSansBold
+	button.TextSize = 15
+	button.Parent = frame
+
+	local value = defaultValue
+
+	local function refresh(extraText)
+		button.Text =
+			labelText .. ": " ..
+			(value and "ON" or "OFF") ..
+			(extraText or "")
+
+		button.BackgroundColor3 =
+			value and Color3.fromRGB(0,120,0)
+			or Color3.fromRGB(120,0,0)
+	end
+
+	ToggleButtons[labelText] = {
+		Button = button,
+		GetValue = function()
+			return value
+		end,
+		Refresh = refresh
+	}
+
+	button.MouseButton1Click:Connect(function()
+		value = not value
+		callback(value)
+		refresh()
+	end)
+
+	refresh()
+	return button
+end
+
+MakeTextBox("Rarity", RarityTarget, 45, TargetOptions.Rarity, function(text, box)
+	RarityTarget = text
+	RarityTargetNumber = RarityIndex[text]
+end)
+
+MakeTextBox("Quality", QualityTarget, 85, TargetOptions.Quality, function(text, box)
+	QualityTarget = text
+	QualityTargetNumber = QualityIndex[text]
+end)
+
+MakeTextBox("Mold", MoldTarget, 125, TargetOptions.Mold, function(text, box)
+	MoldTarget = text
+	MoldTargetNumber = MoldIndex[text]
+end)
+
+MakeTextBox("Class", ClassTarget, 165, TargetOptions.Class, function(text, box)
+	ClassTarget = text
+	ClassTargetNumber = ClassIndex[text]
+end)
+
+MakeNumberBox("Enchant Time", _G.EnchantTime, 205, function(v)
+	_G.EnchantTime = v
+end)
+
+MakeNumberBox("Level Time", _G.LevelTime, 245, function(v)
+	_G.LevelTime = v
+end)
+
+MakeToggle("Rarity", AscendRarity, 285, function(v) AscendRarity = v end)
+MakeToggle("Quality", AscendQuality, 318, function(v) AscendQuality = v end)
+MakeToggle("Mold", AscendMold, 351, function(v) AscendMold = v end)
+MakeToggle("Class", AscendClass, 384, function(v) AscendClass = v end)
+MakeToggle("Enchant", AscendEnchant, 417, function(v) AscendEnchant = v end)
+MakeToggle("Level", AscendLevel, 450, function(v) AscendLevel = v end)
+
+local startButton = Instance.new("TextButton")
+startButton.Size = UDim2.new(0, 235, 0, 32)
+startButton.Position = UDim2.new(0, 10, 0, 490)
+startButton.BackgroundColor3 = Color3.fromRGB(120,0,0)
+startButton.BorderColor3 = Color3.fromRGB(255,255,255)
+startButton.TextColor3 = Color3.fromRGB(255,255,255)
+startButton.Font = Enum.Font.SourceSansBold
+startButton.TextSize = 17
+startButton.Text = "Ascender: OFF"
+startButton.Parent = frame
+
+startButton.MouseButton1Click:Connect(function()
+	enabled = not enabled
+	startButton.Text = enabled and "Ascender: ON" or "Ascender: OFF"
+	startButton.BackgroundColor3 = enabled and Color3.fromRGB(0,120,0) or Color3.fromRGB(120,0,0)
+end)
+
+
+local UserInputService = game:GetService("UserInputService")
+
+local dragging = false
+local dragStart
+local startPos
+
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+	end
+end)
+
+frame.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+
 
 -- Functions
 local function getSwordRarityFromText(text)
@@ -417,93 +729,69 @@ local function SortSwordsByValue(swords, getValue)
 	return swords
 end
 
-local function GetRarityBankSwordsThatNeedAscending()
+local function GetSwordInfo(sword)
+	local swordObj = GetSwordObject(sword.Name)
+
+	if not swordObj or not swordObj:FindFirstChild("Main") then
+		return nil
+	end
+
+	return swordObj.Main.Gui.ItemInfo
+end
+
+local function GetBankSwordsThatNeedAscending(targetNumber, getValue)
 	local swords = {}
+
+	if not targetNumber then
+		return swords
+	end
+
 	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
-		local swordObj = GetSwordObject(sword.Name)
-		if swordObj then
-            if swordObj:FindFirstChild("Main") then
-			local rarityText = swordObj.Main.Gui.ItemInfo.RarityQuality.Text
-			local rarity = getSwordRarityFromText(rarityText)
-			if rarity and rarity < RarityTargetNumber then
-				table.insert(swords, sword)
-			end
-            end
+		local value = getValue(sword)
+
+		if value and value < targetNumber then
+			table.insert(swords, sword)
 		end
 	end
-	return SortSwordsByValue(swords, function(sword)
-	local swordObj = GetSwordObject(sword.Name)
-	if swordObj and swordObj:FindFirstChild("Main") then
-		return getSwordRarityFromText(swordObj.Main.Gui.ItemInfo.RarityQuality.Text)
-	end
-end)
+
+	return SortSwordsByValue(swords, getValue)
+end
+
+local function GetRarityBankSwordsThatNeedAscending()
+	return GetBankSwordsThatNeedAscending(RarityTargetNumber, function(sword)
+		local info = GetSwordInfo(sword)
+		if info then
+			return getSwordRarityFromText(info.RarityQuality.Text)
+		end
+	end)
 end
 
 local function GetQualityBankSwordsThatNeedAscending()
-	local swords = {}
-	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
-		local swordObj = GetSwordObject(sword.Name)
-		if swordObj then
-            if swordObj:FindFirstChild("Main") then
-			local text = swordObj.Main.Gui.ItemInfo.RarityQuality.Text
-			local quality = getSwordQualityFromText(text)
-			if quality and quality < QualityTargetNumber then
-				table.insert(swords, sword)
-			end
-            end
+	return GetBankSwordsThatNeedAscending(QualityTargetNumber, function(sword)
+		local info = GetSwordInfo(sword)
+		if info then
+			return getSwordQualityFromText(info.RarityQuality.Text)
 		end
-	end
-	return SortSwordsByValue(swords, function(sword)
-	local swordObj = GetSwordObject(sword.Name)
-	if swordObj and swordObj:FindFirstChild("Main") then
-		return getSwordQualityFromText(swordObj.Main.Gui.ItemInfo.RarityQuality.Text)
-	end
-end)
+	end)
 end
 
 local function GetMoldBankSwordsThatNeedAscending()
-	local swords = {}
-	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
-		local swordObj = GetSwordObject(sword.Name)
-		if swordObj then
-            if swordObj:FindFirstChild("Main") then
-			local moldName = swordObj.Main.Gui.ItemInfo.Mold.Text
-			local mold = MoldIndex[moldName]
-			if mold and mold < MoldTargetNumber then
-				table.insert(swords, sword)
-			end
-            end
+	return GetBankSwordsThatNeedAscending(MoldTargetNumber, function(sword)
+		local info = GetSwordInfo(sword)
+		if info then
+			return MoldIndex[info.Mold.Text]
 		end
-	end
-	return SortSwordsByValue(swords, function(sword)
-	local swordObj = GetSwordObject(sword.Name)
-	if swordObj and swordObj:FindFirstChild("Main") then
-		return MoldIndex[swordObj.Main.Gui.ItemInfo.Mold.Text]
-	end
-end)
+	end)
 end
 
 local function GetClassBankSwordsThatNeedAscending()
-	local swords = {}
-	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
-		local swordObj = GetSwordObject(sword.Name)
-		if swordObj then
-            if swordObj:FindFirstChild("Main") then
-			local className = swordObj.Main.Gui.ItemInfo.Class.Text:match("^(%S+)")
-			local class = ClassIndex[className]
-			if class and class < ClassTargetNumber then
-				table.insert(swords, sword)
-			end
-        end
+	return GetBankSwordsThatNeedAscending(ClassTargetNumber, function(sword)
+		local info = GetSwordInfo(sword)
+		if info then
+			local className = info.Class.Text:match("^(%S+)")
+			return ClassIndex[className]
 		end
-	end
-	return SortSwordsByValue(swords, function(sword)
-	local swordObj = GetSwordObject(sword.Name)
-	if swordObj and swordObj:FindFirstChild("Main") then
-		local className = swordObj.Main.Gui.ItemInfo.Class.Text:match("^(%S+)")
-		return ClassIndex[className]
-	end
-end)
+	end)
 end
 
 local function BankSword()
@@ -858,22 +1146,31 @@ local Tasks = {
     end
 }
 
-button.MouseButton1Click:Connect(function()
-	enabled = not enabled
-    UpdateUI(
-	    #GetRarityBankSwordsThatNeedAscending(),
-	    #GetQualityBankSwordsThatNeedAscending(),
-	    #GetMoldBankSwordsThatNeedAscending(),
-	    #GetClassBankSwordsThatNeedAscending(),
-	    GetTimedAscendSwordsLeft("Enchant"),
-	    GetTimedAscendSwordsLeft("Level")
-    )
-end)
-button.MouseButton2Click:Connect(function()
-    enabled = false
-    gui:Destroy()
-end)
+local function UpdateUI(Rar, Qual, Mol, Clas, Ench, Lev)
+	if ToggleButtons.Rarity then
+		ToggleButtons.Rarity.Refresh(" [" .. Rar .. "]")
+	end
 
+	if ToggleButtons.Quality then
+		ToggleButtons.Quality.Refresh(" [" .. Qual .. "]")
+	end
+
+	if ToggleButtons.Mold then
+		ToggleButtons.Mold.Refresh(" [" .. Mol .. "]")
+	end
+
+	if ToggleButtons.Class then
+		ToggleButtons.Class.Refresh(" [" .. Clas .. "]")
+	end
+
+	if ToggleButtons.Enchant then
+		ToggleButtons.Enchant.Refresh(" [" .. Ench .. "]")
+	end
+
+	if ToggleButtons.Level then
+		ToggleButtons.Level.Refresh(" [" .. Lev .. "]")
+	end
+end
 
 while true do
     UpdateUI(
