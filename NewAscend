@@ -2,7 +2,7 @@
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.3.0
+--V1.3.1
 
 
 -- Auto Ascend
@@ -418,8 +418,8 @@ local function MakeTextBox(labelText, defaultText, y, options, callback)
 
 	for i = 1, 4 do
 		local s = Instance.new("TextButton")
-		s.Size = UDim2.new(0, 150, 0, 22)
-		s.Position = UDim2.new(0, 265, 0, y + ((i - 1) * 24))
+		s.Size = UDim2.new(0, 150, 0, 30)
+		s.Position = UDim2.new(0, 265, 0, y + ((i - 1) * 30))
 		s.BackgroundColor3 = Color3.fromRGB(25,25,25)
 		s.BorderColor3 = Color3.fromRGB(255,255,255)
 		s.BorderSizePixel = 1
@@ -430,6 +430,7 @@ local function MakeTextBox(labelText, defaultText, y, options, callback)
 		s.Text = ""
 		s.Visible = false
 		s.Parent = frame
+		s.TextScaled = true
 
 		s.MouseButton1Click:Connect(function()
 			box.Text = s.Text
