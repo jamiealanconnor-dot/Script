@@ -1,8 +1,9 @@
+
 --/////////////////////////////--
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.3.1
+--V1.3.2
 
 
 -- Auto Ascend
@@ -10,6 +11,8 @@ local RarityTarget = _G.TargetRarity
 local QualityTarget = _G.TargetQuality
 local MoldTarget = _G.TargetMold
 local ClassTarget = _G.TargetClass
+local TranscendTarget = _G.TranscendTarget or "-"
+local AscendTranscend = _G.TranscendEnabled
 
 local AscendRarity = _G.RarityEnabled
 local AscendQuality = _G.QualityEnabled
@@ -25,6 +28,18 @@ local Order = _G.Order or {
 	"Enchant",
 	"Level"
 }
+
+local TranscendIndex = {
+	["-"] = 1,
+	["+"] = 2,
+	["++"] = 3,
+}
+
+for i = 3, 100 do
+	TranscendIndex["+" .. i] = i + 1
+end
+
+local TranscendTargetNumber = TranscendIndex[TranscendTarget]
 
 local LagPreventionTimeToPickupSwords = _G.PickupSwordTime
 
@@ -191,7 +206,7 @@ gui.ResetOnSpawn = false
 gui.Parent = plr:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 540)
+frame.Size = UDim2.new(0, 260, 0, 595)
 frame.Position = UDim2.new(1, -280, 0.5, -180)
 --frame.Size = UDim2.new(0, 430, 0, 410)
 --frame.Position = UDim2.new(1, -450, 0.5, -180)
@@ -488,16 +503,21 @@ local function MakeToggle(labelText, defaultValue, y, callback)
 	button.Parent = frame
 
 	local value = defaultValue
+	local lastExtraText = ""
 
 	local function refresh(extraText)
-		button.Text =
-			labelText .. ": " ..
-			(value and "ON" or "OFF") ..
-			(extraText or "")
+	if extraText ~= nil then
+		lastExtraText = extraText
+	end
 
-		button.BackgroundColor3 =
-			value and Color3.fromRGB(0,120,0)
-			or Color3.fromRGB(120,0,0)
+	button.Text =
+		labelText .. ": " ..
+		(value and "ON" or "OFF") ..
+		lastExtraText
+
+	button.BackgroundColor3 =
+		value and Color3.fromRGB(0,120,0)
+		or Color3.fromRGB(120,0,0)
 	end
 
 	ToggleButtons[labelText] = {
@@ -538,6 +558,15 @@ MakeTextBox("Class", ClassTarget, 165, TargetOptions.Class, function(text, box)
 	ClassTargetNumber = ClassIndex[text]
 end)
 
+MakeTextBox("Transcend", TranscendTarget, 485, nil, function(text, box)
+	TranscendTarget = text
+	_G.TranscendTarget = text
+end)
+
+MakeToggle("Transcend", AscendTranscend, 520, function(v)
+	AscendTranscend = v
+end)
+
 MakeNumberBox("Enchant Time", _G.EnchantTime, 205, function(v)
 	_G.EnchantTime = v
 end)
@@ -555,7 +584,7 @@ MakeToggle("Level", AscendLevel, 450, function(v) AscendLevel = v end)
 
 local startButton = Instance.new("TextButton")
 startButton.Size = UDim2.new(0, 235, 0, 32)
-startButton.Position = UDim2.new(0, 10, 0, 490)
+startButton.Position = UDim2.new(0, 10, 0, 558)
 startButton.BackgroundColor3 = Color3.fromRGB(120,0,0)
 startButton.BorderColor3 = Color3.fromRGB(255,255,255)
 startButton.TextColor3 = Color3.fromRGB(255,255,255)
@@ -802,6 +831,128 @@ local function BankSword()
 	if currentSword then
 		DropSword(currentSword.Name)
 	end
+end
+
+local function GetCurrentTranscenderSword()
+	return PlrStats.Transcender:GetChildren()[1]
+end
+
+local function InsertSwordIntoTranscender(targetSword)
+	if #PlrStats.Transcender:GetChildren() ~= 0 then
+		return true
+	end
+
+	local swordObj = GetSwordObject(targetSword.Name)
+
+	if not swordObj or not swordObj:FindFirstChild("Main") then
+		return false
+	end
+
+	repeat
+		plr.Character.HumanoidRootPart.CFrame =
+			swordObj.Main.CFrame + Vector3.new(0, 6, 0)
+
+		task.wait(LagPreventionTimeToPickupSwords)
+	until PlrStats.Swords:FindFirstChild(targetSword.Name)
+
+	TP("Transcender")
+	DropSword(targetSword.Name)
+
+	return true
+end
+
+local function PickupTranscender()
+	RemoteFunction:InvokeServer("Pickup Transcender")
+	task.wait(0.5)
+end
+
+local function BankTranscenderSword()
+	local currentSword = GetCurrentTranscenderSword()
+
+	PickupTranscender()
+	TP("Bank")
+
+	if currentSword then
+		DropSword(currentSword.Name)
+	end
+end
+
+local function GetEnchantValueFromInfo(info, enchantName)
+	local enchants = info:FindFirstChild("Enchants")
+	if not enchants then
+		return nil
+	end
+
+	local label = enchants:FindFirstChild(enchantName)
+	if not label then
+		return nil
+	end
+
+	return label.Text:match("([+-]%d*)")
+end
+
+local function SwordNeedsTranscending(sword)
+	if not TranscendTargetNumber then
+		return false
+	end
+
+	local info = GetSwordInfo(sword)
+	if not info then
+		return false
+	end
+
+	for _, enchantName in ipairs({"Enchant1", "Enchant2", "Enchant3"}) do
+		local value = GetEnchantValueFromInfo(info, enchantName)
+		local valueNumber = TranscendIndex[value]
+
+		if not valueNumber or valueNumber < TranscendTargetNumber then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function GetTranscendBankSwordsThatNeedAscending()
+	local swords = {}
+
+	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+		if SwordNeedsTranscending(sword) then
+			table.insert(swords, sword)
+		end
+	end
+
+	return swords
+end
+
+local function TranscendEnchant(enchantName)
+	local sword = GetCurrentTranscenderSword()
+	if not sword then
+		return false
+	end
+
+	local swordObj = GetSwordObject(sword.Name)
+	if not swordObj or not swordObj:FindFirstChild("Main") then
+		return false
+	end
+
+	RemoteEvent:FireServer("Set Transcender Mode", enchantName)
+
+	repeat
+		task.wait(0.1)
+
+		swordObj = GetSwordObject(sword.Name)
+		if not swordObj or not swordObj:FindFirstChild("Main") then
+			return false
+		end
+
+	until (TranscendIndex[GetEnchantValueFromInfo(swordObj.Main.Gui.ItemInfo, enchantName)] or 0) >= TranscendTargetNumber
+
+	task.wait(2)
+	RemoteEvent:FireServer("Set Transcender Mode", "")
+	task.wait(1)
+
+	return true
 end
 
 local function GetWeatherNames()
@@ -1054,6 +1205,32 @@ local Tasks = {
 		return true
 	end,
 
+	Transcend = function()
+		if not AscendTranscend then
+			return false
+		end
+
+		local swords = GetTranscendBankSwordsThatNeedAscending()
+
+		if #swords == 0 then
+			return false
+		end
+
+		local sword = swords[1]
+
+		if not InsertSwordIntoTranscender(sword) then
+			return false
+		end
+
+		TranscendEnchant("Enchant1")
+		TranscendEnchant("Enchant2")
+		TranscendEnchant("Enchant3")
+
+		BankTranscenderSword()
+
+		return true
+	end,
+
 	Quality = function()
 		if not AscendQuality or not QualityTargetNumber then
 			return false
@@ -1147,7 +1324,7 @@ local Tasks = {
     end
 }
 
-local function UpdateUI(Rar, Qual, Mol, Clas, Ench, Lev)
+local function UpdateUI(Rar, Qual, Mol, Clas, Ench, Lev, Trans)
 	if ToggleButtons.Rarity then
 		ToggleButtons.Rarity.Refresh(" [" .. Rar .. "]")
 	end
@@ -1171,17 +1348,22 @@ local function UpdateUI(Rar, Qual, Mol, Clas, Ench, Lev)
 	if ToggleButtons.Level then
 		ToggleButtons.Level.Refresh(" [" .. Lev .. "]")
 	end
+
+	if ToggleButtons.Transcend then
+		ToggleButtons.Transcend.Refresh(" [" .. Trans .. "]")
+	end
 end
 
 while true do
     UpdateUI(
-	    #GetRarityBankSwordsThatNeedAscending(),
-	    #GetQualityBankSwordsThatNeedAscending(),
-	    #GetMoldBankSwordsThatNeedAscending(),
-	    #GetClassBankSwordsThatNeedAscending(),
-	    GetTimedAscendSwordsLeft("Enchant"),
-	    GetTimedAscendSwordsLeft("Level")
-    )
+		#GetRarityBankSwordsThatNeedAscending(),
+		#GetQualityBankSwordsThatNeedAscending(),
+		#GetMoldBankSwordsThatNeedAscending(),
+		#GetClassBankSwordsThatNeedAscending(),
+		GetTimedAscendSwordsLeft("Enchant"),
+		GetTimedAscendSwordsLeft("Level"),
+		#GetTranscendBankSwordsThatNeedAscending()
+	)
 	if enabled then
 		for _, taskName in ipairs(Order) do
 			local taskFunction = Tasks[taskName]
