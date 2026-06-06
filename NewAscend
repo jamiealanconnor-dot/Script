@@ -3,7 +3,7 @@
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.3.2
+--V1.3.3
 
 
 -- Auto Ascend
@@ -63,6 +63,7 @@ local QualityModule = require(Rep.Tables.Quality)
 local MoldModule = require(Rep.Tables.Mold)
 local ClassModule = require(Rep.Tables.Class)
 local SwordAscendingOrder = _G.SwordAscendingOrder or "Lowest"
+local UIScale = _G.UIScale or 1
 
 local CompletedTimedAscends = {
 	Enchant = {},
@@ -206,7 +207,7 @@ gui.ResetOnSpawn = false
 gui.Parent = plr:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 595)
+frame.Size = UDim2.new(0, 260*UIScale, 0, 595*UIScale)
 frame.Position = UDim2.new(1, -280, 0.5, -180)
 --frame.Size = UDim2.new(0, 430, 0, 410)
 --frame.Position = UDim2.new(1, -450, 0.5, -180)
@@ -216,49 +217,49 @@ frame.BorderSizePixel = 1
 frame.Parent = gui
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 32)
+title.Size = UDim2.new(1, 0, 0, 32*UIScale)
 title.BackgroundTransparency = 1
 title.Text = "Auto Ascender"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.Font = Enum.Font.SourceSansBold
-title.TextSize = 22
+title.TextSize = 22*UIScale
 title.Parent = frame
 local AllSuggestionButtons = {}
 
 local minimizedButton = Instance.new("TextButton")
-minimizedButton.Size = UDim2.new(0, 42, 0, 42)
-minimizedButton.Position = UDim2.new(1, -50, 0.7, -21)
+minimizedButton.Size = UDim2.new(0, 42*UIScale, 0, 42*UIScale)
+minimizedButton.Position = UDim2.new(1, -50*UIScale, 0.7, -21*UIScale)
 minimizedButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 minimizedButton.BorderColor3 = Color3.fromRGB(255,255,255)
 minimizedButton.BorderSizePixel = 1
 minimizedButton.TextColor3 = Color3.fromRGB(255,255,255)
 minimizedButton.Font = Enum.Font.SourceSansBold
-minimizedButton.TextSize = 18
+minimizedButton.TextSize = 18*UIScale
 minimizedButton.Text = "ASC"
 minimizedButton.Visible = false
 minimizedButton.Parent = gui
 
 local minimizeButton = Instance.new("TextButton")
-minimizeButton.Size = UDim2.new(0, 24, 0, 24)
-minimizeButton.Position = UDim2.new(1, -56, 0, 4)
+minimizeButton.Size = UDim2.new(0, 24*UIScale, 0, 24*UIScale)
+minimizeButton.Position = UDim2.new(1, -56*UIScale, 0, 4*UIScale)
 minimizeButton.BackgroundColor3 = Color3.fromRGB(25,25,25)
 minimizeButton.BorderColor3 = Color3.fromRGB(255,255,255)
 minimizeButton.BorderSizePixel = 1
 minimizeButton.TextColor3 = Color3.fromRGB(255,255,255)
 minimizeButton.Font = Enum.Font.SourceSansBold
-minimizeButton.TextSize = 18
+minimizeButton.TextSize = 18*UIScale
 minimizeButton.Text = "-"
 minimizeButton.Parent = frame
 
 local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 24, 0, 24)
-closeButton.Position = UDim2.new(1, -28, 0, 4)
+closeButton.Size = UDim2.new(0, 24*UIScale, 0, 24*UIScale)
+closeButton.Position = UDim2.new(1, -28*UIScale, 0, 4*UIScale)
 closeButton.BackgroundColor3 = Color3.fromRGB(80,0,0)
 closeButton.BorderColor3 = Color3.fromRGB(255,255,255)
 closeButton.BorderSizePixel = 1
 closeButton.TextColor3 = Color3.fromRGB(255,255,255)
 closeButton.Font = Enum.Font.SourceSansBold
-closeButton.TextSize = 18
+closeButton.TextSize = 18*UIScale
 closeButton.Text = "X"
 closeButton.Parent = frame
 
@@ -361,19 +362,19 @@ local TargetOptions = {
 
 local function MakeNumberBox(labelText, defaultText, y, callback)
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(0, 90, 0, 28)
-	label.Position = UDim2.new(0, 10, 0, y)
+	label.Size = UDim2.new(0, 90*UIScale, 0, 28*UIScale)
+	label.Position = UDim2.new(0, 10*UIScale, 0, y*UIScale)
 	label.BackgroundTransparency = 1
 	label.Text = labelText
 	label.TextColor3 = Color3.fromRGB(255,255,255)
 	label.Font = Enum.Font.SourceSans
-	label.TextSize = 16
+	label.TextSize = 16*UIScale
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Parent = frame
 
 	local box = Instance.new("TextBox")
-	box.Size = UDim2.new(0, 140, 0, 28)
-	box.Position = UDim2.new(0, 105, 0, y)
+	box.Size = UDim2.new(0, 140*UIScale, 0, 28*UIScale)
+	box.Position = UDim2.new(0, 105*UIScale, 0, y*UIScale)
 	box.BackgroundColor3 = Color3.fromRGB(20,20,20)
 	box.BorderColor3 = Color3.fromRGB(255,255,255)
 	box.BorderSizePixel = 1
@@ -382,7 +383,7 @@ local function MakeNumberBox(labelText, defaultText, y, callback)
 	box.TextColor3 = Color3.fromRGB(255,255,255)
 	box.PlaceholderColor3 = Color3.fromRGB(150,150,150)
 	box.Font = Enum.Font.SourceSans
-	box.TextSize = 15
+	box.TextSize = 15*UIScale
 	box.ClearTextOnFocus = false
 	box.Parent = frame
 
@@ -402,19 +403,19 @@ end
 
 local function MakeTextBox(labelText, defaultText, y, options, callback)
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(0, 90, 0, 28)
-	label.Position = UDim2.new(0, 10, 0, y)
+	label.Size = UDim2.new(0, 90*UIScale, 0, 28*UIScale)
+	label.Position = UDim2.new(0, 10*UIScale, 0, y*UIScale)
 	label.BackgroundTransparency = 1
 	label.Text = labelText
 	label.TextColor3 = Color3.fromRGB(255,255,255)
 	label.Font = Enum.Font.SourceSans
-	label.TextSize = 16
+	label.TextSize = 16*UIScale
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Parent = frame
 
 	local box = Instance.new("TextBox")
-	box.Size = UDim2.new(0, 140, 0, 28)
-	box.Position = UDim2.new(0, 105, 0, y)
+	box.Size = UDim2.new(0, 140*UIScale, 0, 28*UIScale)
+	box.Position = UDim2.new(0, 105*UIScale, 0, y*UIScale)
 	box.BackgroundColor3 = Color3.fromRGB(20,20,20)
 	box.BorderColor3 = Color3.fromRGB(255,255,255)
 	box.BorderSizePixel = 1
@@ -423,7 +424,7 @@ local function MakeTextBox(labelText, defaultText, y, options, callback)
 	box.TextColor3 = Color3.fromRGB(255,255,255)
 	box.PlaceholderColor3 = Color3.fromRGB(150,150,150)
 	box.Font = Enum.Font.SourceSans
-	box.TextSize = 15
+	box.TextSize = 15*UIScale
 	box.ClearTextOnFocus = false
 	box.Parent = frame
 
@@ -433,15 +434,15 @@ local function MakeTextBox(labelText, defaultText, y, options, callback)
 
 	for i = 1, 4 do
 		local s = Instance.new("TextButton")
-		s.Size = UDim2.new(0, 150, 0, 30)
-		s.Position = UDim2.new(0, 265, 0, y + ((i - 1) * 30))
+		s.Size = UDim2.new(0, 150*UIScale, 0, 30*UIScale)
+		s.Position = UDim2.new(0, 265*UIScale, 0, (y + ((i - 1) * 30))*UIScale)
 		s.BackgroundColor3 = Color3.fromRGB(25,25,25)
 		s.BorderColor3 = Color3.fromRGB(255,255,255)
 		s.BorderSizePixel = 1
 		s.TextColor3 = Color3.fromRGB(220,220,220)
 		s.Font = Enum.Font.SourceSans
 		s.BackgroundTransparency = 0.2
-		s.TextSize = 13
+		s.TextSize = 13*UIScale
 		s.Text = ""
 		s.Visible = false
 		s.Parent = frame
@@ -493,13 +494,13 @@ local ToggleButtons = {}
 
 local function MakeToggle(labelText, defaultValue, y, callback)
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.new(0, 235, 0, 28)
-	button.Position = UDim2.new(0, 10, 0, y)
+	button.Size = UDim2.new(0, 235*UIScale, 0, 28*UIScale)
+	button.Position = UDim2.new(0, 10*UIScale, 0, y*UIScale)
 	button.BorderColor3 = Color3.fromRGB(255,255,255)
 	button.BorderSizePixel = 1
 	button.TextColor3 = Color3.fromRGB(255,255,255)
 	button.Font = Enum.Font.SourceSansBold
-	button.TextSize = 15
+	button.TextSize = 15*UIScale
 	button.Parent = frame
 
 	local value = defaultValue
@@ -583,13 +584,13 @@ MakeToggle("Enchant", AscendEnchant, 417, function(v) AscendEnchant = v end)
 MakeToggle("Level", AscendLevel, 450, function(v) AscendLevel = v end)
 
 local startButton = Instance.new("TextButton")
-startButton.Size = UDim2.new(0, 235, 0, 32)
-startButton.Position = UDim2.new(0, 10, 0, 558)
+startButton.Size = UDim2.new(0, 235*UIScale, 0, 32*UIScale)
+startButton.Position = UDim2.new(0, 10*UIScale, 0, 558*UIScale)
 startButton.BackgroundColor3 = Color3.fromRGB(120,0,0)
 startButton.BorderColor3 = Color3.fromRGB(255,255,255)
 startButton.TextColor3 = Color3.fromRGB(255,255,255)
 startButton.Font = Enum.Font.SourceSansBold
-startButton.TextSize = 17
+startButton.TextSize = 17*UIScale
 startButton.Text = "Ascender: OFF"
 startButton.Parent = frame
 
