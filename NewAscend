@@ -3,7 +3,7 @@
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.3.3
+--V1.3.4
 
 
 -- Auto Ascend
@@ -949,9 +949,9 @@ local function TranscendEnchant(enchantName)
 
 	until (TranscendIndex[GetEnchantValueFromInfo(swordObj.Main.Gui.ItemInfo, enchantName)] or 0) >= TranscendTargetNumber
 
-	task.wait(2)
+	task.wait(2.25)
 	RemoteEvent:FireServer("Set Transcender Mode", "")
-	task.wait(1)
+	task.wait(2.25)
 
 	return true
 end
