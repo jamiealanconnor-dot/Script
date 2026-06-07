@@ -3,7 +3,7 @@
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.3.4
+--V1.3.5
 
 
 -- Auto Ascend
@@ -352,6 +352,7 @@ local RarityTargetNumber = RarityIndex[RarityTarget]
 local QualityTargetNumber = QualityIndex[QualityTarget]
 local MoldTargetNumber = MoldIndex[MoldTarget]
 local ClassTargetNumber = ClassIndex[ClassTarget]
+local TranscenderTargetNumber = TranscendIndex[TranscendTarget]
 
 local TargetOptions = {
 	Rarity = GetNamesFromModule(RarityModule),
@@ -561,7 +562,7 @@ end)
 
 MakeTextBox("Transcend", TranscendTarget, 485, nil, function(text, box)
 	TranscendTarget = text
-	_G.TranscendTarget = text
+	TranscendTargetNumber = TranscendIndex[text]
 end)
 
 MakeToggle("Transcend", AscendTranscend, 520, function(v)
