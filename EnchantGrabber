@@ -1,0 +1,106 @@
+local WebhookID = _G.SwordGrabWebhookID
+local WantedEnchants = _G.WantedEnchants
+
+--Ignore the rest of the spaghetti Code
+wait(5)
+local HttpService = game:GetService("HttpService")
+local request = syn and syn.request or request or http_request
+local UI = Instance.new("ScreenGui")
+UI.Parent = game.CoreGui
+local Button = Instance.new("TextButton")
+Button.Parent = UI
+Button.Size = UDim2.new(0,50,0,50)
+Button.Position = UDim2.new(0,700,0,-50)
+Button.Text = "On"
+Button.BackgroundTransparency = 0.5
+local Enabled = true
+local LocalPlayer = game.Players.LocalPlayer
+Button.MouseButton1Down:Connect(function()
+    if Enabled == true then
+        Enabled = false
+        Button.Text = "Off"
+    else
+        Enabled = true
+        Button.Text = "On"
+    end
+end)
+
+Button.MouseButton2Down:Connect(function()
+    Enabled = false
+    UI:Destroy()
+end)
+
+local function GetCounts(str)
+    local counts = {}
+
+    for word in string.gmatch(str, "[^|]+") do
+        counts[word] = (counts[word] or 0) + 1
+    end
+
+    return counts
+end
+
+local function SameCombination(wanted, actual)
+    local countWanted = GetCounts(wanted)
+    local countActual = GetCounts(actual)
+
+    for enchant, amount in pairs(countWanted) do
+        if (countActual[enchant] or 0) < amount then
+            return false
+        end
+    end
+
+    print("found: "..wanted)
+    return true
+end
+
+local function SendMessage(Enchant1Name,Enchant2Name,Enchant3Name)
+
+request({
+    Url = WebhookID,
+    Method = "POST",
+    Headers = {
+        ["Content-Type"] = "application/json"
+    },
+
+    Body = HttpService:JSONEncode({
+        username = "Abbi's Webhook Bot",
+        avatar_url = "",
+        content = "",
+        embeds = {
+            {
+                title = LocalPlayer.name,
+                description = "Found a Sword!" ,
+                color = 5793266,
+                fields = {
+                    {name = "Enchant 1",value = Enchant1Name,inline = true},
+					{name = "Enchant 2",value = Enchant2Name,inline = true},
+                    {name = "Enchant 3",value = Enchant3Name,inline = true}
+                }
+            }
+        }
+    })
+})
+end
+while task.wait(.5) do
+repeat wait() until Enabled == true
+    for i,v in pairs(game.workspace.Swords:GetChildren())do
+        if v:FindFirstChild("Main") then
+        if #v.Main.Gui.ItemInfo.Enchants:GetChildren() == 4 then
+            local EnchantsFolder = v:FindFirstChild("Main"):FindFirstChild("Gui"):FindFirstChild("ItemInfo"):FindFirstChild("Enchants")
+            if v.Main.Gui.ItemInfo.Selling.Text ~= "" then
+            local EnchantString =  string.match(EnchantsFolder.Enchant1.Text, "^(%a+)").."|"..string.match(EnchantsFolder.Enchant2.Text, "^(%a+)").."|"..string.match(EnchantsFolder.Enchant3.Text, "^(%a+)")
+			for l,x in pairs(WantedEnchants)do
+            if SameCombination(x,EnchantString) == true then
+            local PreviousPos = LocalPlayer.Character.HumanoidRootPart.Position
+            LocalPlayer.Character:MoveTo(v.Main.Position + Vector3.new(0,4,0))
+            task.wait(.5)
+            LocalPlayer.Character:MoveTo(PreviousPos)
+            SendMessage(EnchantsFolder.Enchant1.Text,EnchantsFolder.Enchant2.Text,EnchantsFolder.Enchant3.Text)
+            end
+            end
+            end
+        end
+        end
+    end
+end
