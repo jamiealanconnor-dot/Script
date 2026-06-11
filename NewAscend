@@ -3,7 +3,7 @@
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.3.5
+--V1.3.7
 
 
 -- Auto Ascend
@@ -11,7 +11,10 @@ local RarityTarget = _G.TargetRarity
 local QualityTarget = _G.TargetQuality
 local MoldTarget = _G.TargetMold
 local ClassTarget = _G.TargetClass
-local TranscendTarget = _G.TranscendTarget or "-"
+local TranscendTargetShort =
+	(_G.TranscendTarget and _G.TranscendTarget ~= "")
+	and _G.TranscendTarget
+	or "-1"
 local AscendTranscend = _G.TranscendEnabled
 
 local AscendRarity = _G.RarityEnabled
@@ -25,22 +28,143 @@ local Order = _G.Order or {
 	"Quality",
 	"Mold",
 	"Class",
+	"Transcend",
 	"Enchant",
 	"Level"
 }
 
-local TranscendIndex = {
-	["-"] = 1,
-	["+"] = 2,
-	["++"] = 3,
+local EnchantTierOrder = {
+["<font color='#ffba59'>-</font>"] = 1,
+["<font color='#ffba59'>+</font>"] = 2,
+["<font color='#ffba59'>++</font>"] = 3,
+["<font color='#b8cbdc'>-</font>"] = 4,
+["<font color='#b8cbdc'>+</font>"] = 5,
+["<font color='#b8cbdc'>++</font>"] = 6,
+["<font color='#fff158'>-</font>"] = 7,
+["<font color='#fff158'>+</font>"] = 8,
+["<font color='#fff158'>++</font>"] = 9,
+["<font color='#6067ff'>-</font>"] = 10,
+["<font color='#6067ff'>+</font>"] = 11,
+["<font color='#6067ff'>++</font>"] = 12,
+["<font color='#93ff8b'>-</font>"] = 13,
+["<font color='#93ff8b'>+</font>"] = 14,
+["<font color='#93ff8b'>++</font>"] = 15,
+["<font color='#ff4040'>-</font>"] = 16,
+["<font color='#ff4040'>+</font>"] = 17,
+["<font color='#ff4040'>++</font>"] = 18,
+["<font color='#c640ff'>-</font>"] = 19,
+["<font color='#c640ff'>+</font>"] = 20,
+["<font color='#c640ff'>++</font>"] = 21,
+["<font color='#81fffb'>-</font>"] = 22,
+["<font color='#81fffb'>+</font>"] = 23,
+["<font color='#81fffb'>++</font>"] = 24,
+["<font color='#404040'>-</font>"] = 25,
+["<font color='#404040'>+</font>"] = 26,
+["<font color='#404040'>++</font>"] = 27,
+["<font color='#c0e2ff'>-</font>"] = 28,
+["<font color='#c0e2ff'>+</font>"] = 29,
+["<font color='#c0e2ff'>++</font>"] = 30,
+["<font color='#ffb496'>-</font>"] = 31,
+["<font color='#ffb496'>+</font>"] = 32,
+["<font color='#ffb496'>++</font>"] = 33,
+["<font color='#ff8b8b'>-</font>"] = 34,
+["<font color='#ff8b8b'>+</font>"] = 35,
+["<font color='#ff8b8b'>++</font>"] = 36,
+["<font color='#8b8bff'>-</font>"] = 37,
+["<font color='#8b8bff'>+</font>"] = 38,
+["<font color='#8b8bff'>++</font>"] = 39,
+["<font color='#85ff89'>-</font>"] = 40,
+["<font color='#85ff89'>+</font>"] = 41,
+["<font color='#85ff89'>++</font>"] = 42,
+["<font color='#696969'>-</font>"] = 43,
+["<font color='#696969'>+</font>"] = 44,
+["<font color='#696969'>++</font>"] = 45,
+["<font color='#8dceff'>-</font>"] = 46,
+["<font color='#8dceff'>+</font>"] = 47,
+["<font color='#8dceff'>++</font>"] = 48,
+["<font color='#ffff85'>-</font>"] = 49,
+["<font color='#ffff85'>+</font>"] = 50,
+["<font color='#ffff85'>++</font>"] = 51,
+["<font color='#80ceff'>-</font>"] = 52,
+["<font color='#80ceff'>+</font>"] = 53,
+["<font color='#80ceff'>++</font>"] = 54,
+["<font color='#9095ff'>-</font>"] = 55,
+["<font color='#9095ff'>+</font>"] = 56,
+["<font color='#9095ff'>++</font>"] = 57,
+["<font color='#d797ff'>-</font>"] = 58,
+["<font color='#d797ff'>+</font>"] = 59,
+["<font color='#d797ff'>++</font>"] = 60,
+["<font color='#b2b2b2'>-</font>"] = 61,
+["<font color='#b2b2b2'>+</font>"] = 62,
+["<font color='#b2b2b2'>++</font>"] = 63,
+["<font color='#844f4f'>-</font>"] = 64,
+["<font color='#844f4f'>+</font>"] = 65,
+["<font color='#844f4f'>++</font>"] = 66,
+["<font color='#ff926d'>-</font>"] = 67,
+["<font color='#ff926d'>+</font>"] = 68,
+["<font color='#ff926d'>++</font>"] = 69,
+["<font color='#5c5860'>-</font>"] = 70,
+["<font color='#5c5860'>+</font>"] = 71,
+["<font color='#5c5860'>++</font>"] = 72
 }
 
-for i = 3, 100 do
-	TranscendIndex["+" .. i] = i + 1
+local EnchantTierColors = {
+	"#ffba59",
+	"#b8cbdc",
+	"#fff158",
+	"#6067ff",
+	"#93ff8b",
+	"#ff4040",
+	"#c640ff",
+	"#81fffb",
+	"#404040",
+	"#c0e2ff",
+	"#ffb496",
+	"#ff8b8b",
+	"#8b8bff",
+	"#85ff89",
+	"#696969",
+	"#8dceff",
+	"#ffff85",
+	"#80ceff",
+	"#9095ff",
+	"#d797ff",
+	"#b2b2b2",
+	"#844f4f",
+	"#ff926d",
+	"#5c5860",
+}
+
+local function GetEnchantTierRichText(shortText)
+	shortText = tostring(shortText)
+
+	local symbol, tier = shortText:match("^(%+%+)(%d+)$")
+
+	if not symbol then
+		symbol, tier = shortText:match("^(%+)(%d+)$")
+	end
+
+	if not symbol then
+		symbol, tier = shortText:match("^(%-)(%d+)$")
+	end
+
+	if not symbol or not tier then
+		return nil
+	end
+
+	tier = tonumber(tier)
+
+	local color = EnchantTierColors[tier]
+	if not color then
+		return nil
+	end
+
+	return "<font color='" .. color .. "'>" .. symbol .. "</font>"
 end
 
-local TranscendTargetNumber = TranscendIndex[TranscendTarget]
+local EnchantTiers = EnchantTierOrder
 
+local TranscendTarget = GetEnchantTierRichText(TranscendTargetShort)
 local LagPreventionTimeToPickupSwords = _G.PickupSwordTime
 
 -- Services / references
@@ -228,7 +352,7 @@ local AllSuggestionButtons = {}
 
 local minimizedButton = Instance.new("TextButton")
 minimizedButton.Size = UDim2.new(0, 42*UIScale, 0, 42*UIScale)
-minimizedButton.Position = UDim2.new(1, -50*UIScale, 0.7, -21*UIScale)
+minimizedButton.Position = UDim2.new(1, -50*UIScale, 0.8, -21*UIScale)
 minimizedButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 minimizedButton.BorderColor3 = Color3.fromRGB(255,255,255)
 minimizedButton.BorderSizePixel = 1
@@ -352,7 +476,6 @@ local RarityTargetNumber = RarityIndex[RarityTarget]
 local QualityTargetNumber = QualityIndex[QualityTarget]
 local MoldTargetNumber = MoldIndex[MoldTarget]
 local ClassTargetNumber = ClassIndex[ClassTarget]
-local TranscenderTargetNumber = TranscendIndex[TranscendTarget]
 
 local TargetOptions = {
 	Rarity = GetNamesFromModule(RarityModule),
@@ -560,9 +683,17 @@ MakeTextBox("Class", ClassTarget, 165, TargetOptions.Class, function(text, box)
 	ClassTargetNumber = ClassIndex[text]
 end)
 
-MakeTextBox("Transcend", TranscendTarget, 485, nil, function(text, box)
-	TranscendTarget = text
-	TranscendTargetNumber = TranscendIndex[text]
+MakeTextBox("Transcend", TranscendTargetShort, 485, nil, function(text, box)
+	local richTarget = GetEnchantTierRichText(text)
+
+	if richTarget then
+		TranscendTargetShort = text
+		TranscendTarget = richTarget
+		_G.TranscendTarget = text
+		box.Text = text
+	else
+		box.Text = TranscendTargetShort
+	end
 end)
 
 MakeToggle("Transcend", AscendTranscend, 520, function(v)
@@ -890,24 +1021,61 @@ local function GetEnchantValueFromInfo(info, enchantName)
 		return nil
 	end
 
-	return label.Text:match("([+-]%d*)")
+	return label.Text
+end
+
+local function GetEnchantTierNumber(value)
+	if not value then
+		return nil
+	end
+
+	value = tostring(value):lower()
+
+	local color, symbol = value:match("<font color=[\"'](#[%da-f]+)[\"']>(%+%+)</font>")
+
+	if not color then
+		color, symbol = value:match("<font color=[\"'](#[%da-f]+)[\"']>(%+)</font>")
+	end
+
+	if not color then
+		color, symbol = value:match("<font color=[\"'](#[%da-f]+)[\"']>(%-)</font>")
+	end
+
+	if not color or not symbol then
+		return nil
+	end
+
+	local key = "<font color='" .. color .. "'>" .. symbol .. "</font>"
+	return EnchantTiers[key]
+end
+
+local function IsEnchantAtOrAboveTarget(value)
+	local valueNumber = GetEnchantTierNumber(value)
+	local targetNumber = GetEnchantTierNumber(TranscendTarget)
+
+	return valueNumber and targetNumber and valueNumber >= targetNumber
 end
 
 local function SwordNeedsTranscending(sword)
-	if not TranscendTargetNumber then
-		return false
-	end
-
 	local info = GetSwordInfo(sword)
 	if not info then
 		return false
 	end
 
+	local targetNumber = GetEnchantTierNumber(TranscendTarget)
+	if not targetNumber then
+		return false
+	end
+
 	for _, enchantName in ipairs({"Enchant1", "Enchant2", "Enchant3"}) do
 		local value = GetEnchantValueFromInfo(info, enchantName)
-		local valueNumber = TranscendIndex[value]
+		local valueNumber = GetEnchantTierNumber(value)
 
-		if not valueNumber or valueNumber < TranscendTargetNumber then
+		if not valueNumber then
+			return true
+		end
+
+		if valueNumber < targetNumber then
 			return true
 		end
 	end
@@ -938,6 +1106,13 @@ local function TranscendEnchant(enchantName)
 		return false
 	end
 
+	local info = swordObj.Main.Gui.ItemInfo
+
+	-- Already at target or higher, don't start transcending
+	if IsEnchantAtOrAboveTarget(GetEnchantValueFromInfo(info, enchantName)) then
+		return true
+	end
+
 	RemoteEvent:FireServer("Set Transcender Mode", enchantName)
 
 	repeat
@@ -948,7 +1123,9 @@ local function TranscendEnchant(enchantName)
 			return false
 		end
 
-	until (TranscendIndex[GetEnchantValueFromInfo(swordObj.Main.Gui.ItemInfo, enchantName)] or 0) >= TranscendTargetNumber
+	until IsEnchantAtOrAboveTarget(
+		GetEnchantValueFromInfo(swordObj.Main.Gui.ItemInfo, enchantName)
+	)
 
 	task.wait(2.25)
 	RemoteEvent:FireServer("Set Transcender Mode", "")
