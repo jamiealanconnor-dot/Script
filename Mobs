@@ -1,16 +1,18 @@
+--////////////////////////////////////////////////////////
 -- EDITABLE SETTINGS
+--////////////////////////////////////////////////////////
 
 local distanceBelow = 6.5
-local EmergencyHealPercentage = 0.7
-local HealTime = 10
+local FrameDebounce = 200 -- Number of frames on stuck mob before it's destroyed
+local SafeHealingPercentage = 0.7
 
+--////////////////////////////////////////////////////////
 -- STATE
+--////////////////////////////////////////////////////////
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
-local Rep = game.ReplicatedStorage
-local RarityModule = require(Rep.Tables.Rarity)
 
 player.CameraMode = Enum.CameraMode.Classic
 player.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
@@ -20,6 +22,8 @@ local objectsFolder = workspace:WaitForChild("Objects")
 
 local character
 local hrp
+
+local IsHealing = false
 
 local enabled = false
 local CurrentTarget = nil
@@ -48,7 +52,9 @@ objectsFolder.ChildRemoved:Connect(function(child)
 		ActiveBomb = false
 	end
 end)
+--////////////////////////////////////////////////////////
 -- CHARACTER BIND
+--////////////////////////////////////////////////////////
 local function BindCharacter(char)
 	character = char
 	hrp = char:WaitForChild("HumanoidRootPart")
@@ -58,7 +64,10 @@ end
 BindCharacter(player.Character or player.CharacterAdded:Wait())
 
 player.CharacterAdded:Connect(BindCharacter)
+
+--////////////////////////////////////////////////////////
 -- UI
+--////////////////////////////////////////////////////////
 local playerGui = player:WaitForChild("PlayerGui")
 
 local screenGui = Instance.new("ScreenGui")
@@ -94,17 +103,9 @@ button.MouseButton2Click:Connect(function()
     enabled = false
     screenGui:Destroy()
 end)
-
-local function getIndexByName(tbl, name)
-	for index, data in pairs(tbl) do
-		if data.Name == name then
-			return index
-		end
-	end
-	return nil
-end
-
+--////////////////////////////////////////////////////////
 -- HELPERS
+--////////////////////////////////////////////////////////
 local function FindSword()
 	if not character then return nil end
 
@@ -117,42 +118,56 @@ local function FindSword()
 	return nil
 end
 
+
 local function IsValidMob(mob)
 	if not mob or not mob.Parent then return false end
 
 	local hp = mob:FindFirstChild("HP")
 	local health = hp and hp:FindFirstChild("Health")
+	if health then
     if health.Value == 0 then
     mob:Destroy()
         return false
     end
 	return health and health.Value > 0
+	else
+	return false
+	end
 end
 
 local function GetClosestMob()
 	local best
-	local MinRarity = 1
+	local bestDist = 1000
+
 	for _, mob in ipairs(npcFolder:GetChildren()) do
 		if IsValidMob(mob) then
 			local hitbox = mob:FindFirstChild("Hitbox")
 			if hitbox and hrp then
-				if mob:FindFirstChild("Head") then
-					local MobRarity = getIndexByName(RarityModule,mob.Head.Gui.Main.Info.Rarity.Text)
-					if MobRarity > MinRarity then
+				local dist = (hitbox.Position - hrp.Position).Magnitude
+				if dist < bestDist then
+					bestDist = dist
 					best = mob
-					MinRarity = MobRarity
-					end
 				end
 			end
 		end
 	end
+
 	return best
 end
 
--- NOCOLLIDE (simple + stable)
-RunService.Stepped:Connect(function()
-	if not enabled or not character then return end
 
+--////////////////////////////////////////////////////////
+-- NOCOLLIDE (simple + stable)
+--////////////////////////////////////////////////////////
+RunService.Stepped:Connect(function()
+	if IsHealing == true then
+	for _, v in ipairs(character:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.CanCollide = false
+		end
+	end
+	end
+	if not enabled or not character then return end
 	for _, v in ipairs(character:GetDescendants()) do
 		if v:IsA("BasePart") then
 			v.CanCollide = false
@@ -160,7 +175,9 @@ RunService.Stepped:Connect(function()
 	end
 end)
 
+--////////////////////////////////////////////////////////
 -- COMBAT
+--////////////////////////////////////////////////////////
 local lastAttack = 0
 local attackCooldown = 0.15
 
@@ -172,10 +189,31 @@ local function Attack()
 	ActiveSword:Activate()
 end
 
+local HealPlatform = Instance.new("Part")
+HealPlatform.Parent = workspace
+HealPlatform.Size = Vector3.new(50,1,50)
+HealPlatform.Anchored = true
+HealPlatform.Position = Vector3.new(-13909, 247, -45167)
+
+--////////////////////////////////////////////////////////
 -- MAIN LOOP
+--////////////////////////////////////////////////////////
+local PreviousMobHealth = 1
+local DebounceCounter = 0
 RunService.Heartbeat:Connect(function()
 	if not enabled then return end
 	if not hrp then return end
+	if game.Players.LocalPlayer.Character.HP.Health.Value < game.Players.LocalPlayer.Character.HP.MaxHealth.Value *SafeHealingPercentage then
+	IsHealing = true
+	hrp.CFrame = HealPlatform.CFrame + Vector3.new(0,6,0)
+	enabled = false
+	UpdateUI()
+	button.Text = "HEALING"
+	repeat wait(.1) until game.Players.LocalPlayer.Character.HP.Health.Value == game.Players.LocalPlayer.Character.HP.MaxHealth.Value
+	enabled = true
+	UpdateUI()
+	IsHealing = false
+	end
 
 	-- refresh sword
 	if not ActiveSword then
@@ -193,11 +231,11 @@ RunService.Heartbeat:Connect(function()
 		end
 		return
 	end
-
+	if not IsHealing then
 	local hitbox = CurrentTarget:FindFirstChild("Hitbox")
-	hitbox.Transparency = 0.5
 	local hp = CurrentTarget:FindFirstChild("HP")
 	local health = hp and hp:FindFirstChild("Health")
+	local MaxHealth = hp and hp:FindFirstChild("MaxHealth")
 
 	if not hitbox or not health then
 		CurrentTarget = nil
@@ -205,24 +243,24 @@ RunService.Heartbeat:Connect(function()
 	end
 
 	local targetPos = hitbox.Position - Vector3.new(0, distanceBelow, 0)
-    if ActiveBomb == true then
-    targetPos = hitbox.Position - Vector3.new(100, 50, 100)
+    if objectsFolder:FindFirstChild("Bomb") or objectsFolder:FindFirstChild("ExplosionVFX") then
+    targetPos = hitbox.Position - Vector3.new(30, 60, 30)
     end
-
-	if player.Character.HP.Health.Value < player.Character.HP.MaxHealth.Value*EmergencyHealPercentage then
-	targetPos = hitbox.Position - Vector3.new(100, 50, 100)
-	local cf = CFrame.lookAt(targetPos, hitbox.Position)
-	lastCFrame = cf
-	hrp.CFrame = cf
-	hrp.AssemblyLinearVelocity = Vector3.zero
-	hrp.AssemblyAngularVelocity = Vector3.zero
-	task.wait(HealTime)
-	end
-
 	local cf = CFrame.lookAt(targetPos, hitbox.Position)
 	lastCFrame = cf
 	hrp.CFrame = cf
 	hrp.AssemblyLinearVelocity = Vector3.zero
 	hrp.AssemblyAngularVelocity = Vector3.zero
 	Attack()
+	DebounceCounter = DebounceCounter + 1
+	if DebounceCounter > FrameDebounce then
+		DebounceCounter = 0
+		if health.Value == MaxHealth.Value or health.Value == PreviousMobHealth then
+			CurrentTarget:Destroy()
+			CurrentTarget = nil
+		else
+		PreviousMobHealth = health.Value
+		end
+	end
+	end
 end)
