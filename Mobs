@@ -244,7 +244,7 @@ RunService.Heartbeat:Connect(function()
 
 	local targetPos = hitbox.Position - Vector3.new(0, distanceBelow, 0)
     if objectsFolder:FindFirstChild("Bomb") or objectsFolder:FindFirstChild("ExplosionVFX") then
-    targetPos = hitbox.Position - Vector3.new(30, 60, 30)
+    targetPos = hitbox.Position + Vector3.new(30, _G.UpOrDown, 30)
     end
 	local cf = CFrame.lookAt(targetPos, hitbox.Position)
 	lastCFrame = cf
