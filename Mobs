@@ -1,10 +1,10 @@
 --////////////////////////////////////////////////////////
--- EDITABLE SETTINGS
+-- EDITABLE SETTINGS V1.1
 --////////////////////////////////////////////////////////
 
-local distanceBelow = 6.5
-local FrameDebounce = 200 -- Number of frames on stuck mob before it's destroyed
-local SafeHealingPercentage = 0.7
+local distanceBelow = _G.distanceBelow
+local FrameDebounce = _G.FrameDebounce -- Number of frames on stuck mob before it's destroyed
+local SafeHealingPercentage = _G.SafeHealingPercentage
 
 --////////////////////////////////////////////////////////
 -- STATE
