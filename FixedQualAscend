@@ -1,0 +1,1730 @@
+--/////////////////////////////--
+----------Main Commit------------
+--/////////////////////////////--
+
+--V1.1
+
+
+-- Auto Ascend
+local RarityTarget = _G.TargetRarity
+local QualityTarget = _G.TargetQuality
+local MoldTarget = _G.TargetMold
+local ClassTarget = _G.TargetClass
+local TranscendTargetShort =
+	(_G.TranscendTarget and _G.TranscendTarget ~= "")
+	and _G.TranscendTarget
+	or "-1"
+local AscendTranscend = _G.TranscendEnabled
+
+local AscendRarity = _G.RarityEnabled
+local AscendQuality = _G.QualityEnabled
+local AscendMold = _G.MoldEnabled
+local AscendClass = _G.ClassEnabled
+local AscendEnchant = _G.EnchantEnabled
+local AscendLevel = _G.LevelEnabled
+local Order = _G.Order or {
+	"Rarity",
+	"Quality",
+	"Mold",
+	"Class",
+	"Enchant",
+	"Level"
+}
+
+local MovementBusy = false
+local GreekAliases = {
+	Alpha = "α",
+	Beta = "β",
+	Delta = "Δ",
+	Sigma = "Σ",
+	Phi = "Φ",
+	Psi = "Ψ",
+	Omega = "Ω",
+}
+local function WithMovementLock(callback)
+	while MovementBusy do
+		task.wait(0.1)
+	end
+
+	MovementBusy = true
+
+	local success, result = pcall(callback)
+
+	MovementBusy = false
+
+	if not success then
+		warn(result)
+		return false
+	end
+
+	return result
+end
+
+local EnchantTierOrder = {
+["<font color='#ffba59'>-</font>"] = 1,
+["<font color='#ffba59'>+</font>"] = 2,
+["<font color='#ffba59'>++</font>"] = 3,
+["<font color='#b8cbdc'>-</font>"] = 4,
+["<font color='#b8cbdc'>+</font>"] = 5,
+["<font color='#b8cbdc'>++</font>"] = 6,
+["<font color='#fff158'>-</font>"] = 7,
+["<font color='#fff158'>+</font>"] = 8,
+["<font color='#fff158'>++</font>"] = 9,
+["<font color='#6067ff'>-</font>"] = 10,
+["<font color='#6067ff'>+</font>"] = 11,
+["<font color='#6067ff'>++</font>"] = 12,
+["<font color='#93ff8b'>-</font>"] = 13,
+["<font color='#93ff8b'>+</font>"] = 14,
+["<font color='#93ff8b'>++</font>"] = 15,
+["<font color='#ff4040'>-</font>"] = 16,
+["<font color='#ff4040'>+</font>"] = 17,
+["<font color='#ff4040'>++</font>"] = 18,
+["<font color='#c640ff'>-</font>"] = 19,
+["<font color='#c640ff'>+</font>"] = 20,
+["<font color='#c640ff'>++</font>"] = 21,
+["<font color='#81fffb'>-</font>"] = 22,
+["<font color='#81fffb'>+</font>"] = 23,
+["<font color='#81fffb'>++</font>"] = 24,
+["<font color='#404040'>-</font>"] = 25,
+["<font color='#404040'>+</font>"] = 26,
+["<font color='#404040'>++</font>"] = 27,
+["<font color='#c0e2ff'>-</font>"] = 28,
+["<font color='#c0e2ff'>+</font>"] = 29,
+["<font color='#c0e2ff'>++</font>"] = 30,
+["<font color='#ffb496'>-</font>"] = 31,
+["<font color='#ffb496'>+</font>"] = 32,
+["<font color='#ffb496'>++</font>"] = 33,
+["<font color='#ff8b8b'>-</font>"] = 34,
+["<font color='#ff8b8b'>+</font>"] = 35,
+["<font color='#ff8b8b'>++</font>"] = 36,
+["<font color='#8b8bff'>-</font>"] = 37,
+["<font color='#8b8bff'>+</font>"] = 38,
+["<font color='#8b8bff'>++</font>"] = 39,
+["<font color='#85ff89'>-</font>"] = 40,
+["<font color='#85ff89'>+</font>"] = 41,
+["<font color='#85ff89'>++</font>"] = 42,
+["<font color='#696969'>-</font>"] = 43,
+["<font color='#696969'>+</font>"] = 44,
+["<font color='#696969'>++</font>"] = 45,
+["<font color='#8dceff'>-</font>"] = 46,
+["<font color='#8dceff'>+</font>"] = 47,
+["<font color='#8dceff'>++</font>"] = 48,
+["<font color='#ffff85'>-</font>"] = 49,
+["<font color='#ffff85'>+</font>"] = 50,
+["<font color='#ffff85'>++</font>"] = 51,
+["<font color='#80ceff'>-</font>"] = 52,
+["<font color='#80ceff'>+</font>"] = 53,
+["<font color='#80ceff'>++</font>"] = 54,
+["<font color='#9095ff'>-</font>"] = 55,
+["<font color='#9095ff'>+</font>"] = 56,
+["<font color='#9095ff'>++</font>"] = 57,
+["<font color='#d797ff'>-</font>"] = 58,
+["<font color='#d797ff'>+</font>"] = 59,
+["<font color='#d797ff'>++</font>"] = 60,
+["<font color='#b2b2b2'>-</font>"] = 61,
+["<font color='#b2b2b2'>+</font>"] = 62,
+["<font color='#b2b2b2'>++</font>"] = 63,
+["<font color='#844f4f'>-</font>"] = 64,
+["<font color='#844f4f'>+</font>"] = 65,
+["<font color='#844f4f'>++</font>"] = 66,
+["<font color='#ff926d'>-</font>"] = 67,
+["<font color='#ff926d'>+</font>"] = 68,
+["<font color='#ff926d'>++</font>"] = 69,
+["<font color='#5c5860'>-</font>"] = 70,
+["<font color='#5c5860'>+</font>"] = 71,
+["<font color='#5c5860'>++</font>"] = 72
+}
+
+local EnchantTierColors = {
+	"#ffba59",
+	"#b8cbdc",
+	"#fff158",
+	"#6067ff",
+	"#93ff8b",
+	"#ff4040",
+	"#c640ff",
+	"#81fffb",
+	"#404040",
+	"#c0e2ff",
+	"#ffb496",
+	"#ff8b8b",
+	"#8b8bff",
+	"#85ff89",
+	"#696969",
+	"#8dceff",
+	"#ffff85",
+	"#80ceff",
+	"#9095ff",
+	"#d797ff",
+	"#b2b2b2",
+	"#844f4f",
+	"#ff926d",
+	"#5c5860",
+}
+
+local function GetEnchantTierRichText(shortText)
+	shortText = tostring(shortText)
+
+	local symbol, tier = shortText:match("^(%+%+)(%d+)$")
+
+	if not symbol then
+		symbol, tier = shortText:match("^(%+)(%d+)$")
+	end
+
+	if not symbol then
+		symbol, tier = shortText:match("^(%-)(%d+)$")
+	end
+
+	if not symbol or not tier then
+		return nil
+	end
+
+	tier = tonumber(tier)
+
+	local color = EnchantTierColors[tier]
+	if not color then
+		return nil
+	end
+
+	return "<font color='" .. color .. "'>" .. symbol .. "</font>"
+end
+
+local EnchantTiers = EnchantTierOrder
+
+local TranscendTarget = GetEnchantTierRichText(TranscendTargetShort)
+local LagPreventionTimeToPickupSwords = _G.PickupSwordTime
+
+-- Services / references
+local Players = game:GetService("Players")
+local Rep = game:GetService("ReplicatedStorage")
+local plr = Players.LocalPlayer
+local LastAscendChatData = nil
+local LastAscendDataByType = {}
+local WebhookMessages = {}
+local WebhookSwordData = {}
+local PlrStats = Rep.Stats:WaitForChild(plr.Name)
+local Paper = Rep:WaitForChild("Paper")
+local Remotes = Paper:WaitForChild("Remotes")
+local RemoteFunction = Remotes:WaitForChild("__remotefunction")
+local RemoteEvent = Remotes:WaitForChild("__remoteevent")
+local SwordsFolder = workspace:WaitForChild("Swords")
+local HttpService = game:GetService("HttpService")
+local RarityModule = require(Rep.Tables.Rarity)
+local QualityModule = require(Rep.Tables.Quality)
+local MoldModule = require(Rep.Tables.Mold)
+local ClassModule = require(Rep.Tables.Class)
+local SwordAscendingOrder = _G.SwordAscendingOrder or "Lowest"
+local UIScale = _G.UIScale or 1
+
+local CompletedTimedAscends = {
+	Enchant = {},
+	Level = {}
+}
+
+local AscendNotificationQueue = {
+	Rarity = {},
+	Quality = {},
+	Mold = {}
+}
+
+local function CleanRichText(text)
+	return text:gsub("<.->", "")
+end
+
+local function AddCommas(n)
+	local left, num, right = tostring(n):match('^([^%d]*%d)(%d*)(.-)$')
+	return left .. (num:reverse():gsub('(%d%d%d)', '%1,'):reverse()) .. right
+end
+local NotificationsHolder = plr.PlayerGui
+	:WaitForChild("Notifications")
+	:WaitForChild("Holder")
+print("Notification listener connected to:", NotificationsHolder:GetFullName())
+
+local function ReadAscendNotification(rawText)
+	local cleanText = CleanRichText(rawText)
+	print(rawText)
+	local rng = cleanText:match("%((.-)%)")
+	print(rng)
+	if rng then
+		local number, suffix = rng:match("1/([%d,%.]+)(%a*)")
+
+		if number then
+			local cleanedNumber = number:gsub(",", "")
+			number = tonumber(cleanedNumber)
+
+			if number then
+
+				-- Keep decimal precision for suffix values like M/B/T
+				if suffix and suffix ~= "" then
+					rng = string.format("1/%.2f%s", number, suffix)
+
+				-- Normal comma formatting for regular numbers
+				else
+					rng = "1/" .. AddCommas(math.floor(number + 0.5))
+				end
+			end
+		end
+	end
+
+	local value, upgradeType
+
+	local patterns = {
+		{ pattern = "You have ascended your sword to%s+([%w%s%+%-]+)%s+Rarity", type = "Rarity" },
+		{ pattern = "You have ascended your sword to%s+([%w%s%+%-]+)%s+Quality", type = "Quality" },
+		{ pattern = "You have ascended your sword to%s+([%w%s%+%-]+)%s+Mold", type = "Mold" },
+
+		{ pattern = "You have gotten an%s+([%w%s%+%-]+)%s+Rarity", type = "Rarity" },
+		{ pattern = "You have gotten an%s+([%w%s%+%-]+)%s+Quality", type = "Quality" },
+		{ pattern = "You have gotten an%s+([%w%s%+%-]+)%s+Mold", type = "Mold" },
+	}
+
+	for _, data in ipairs(patterns) do
+		value = cleanText:match(data.pattern)
+
+		if value then
+			upgradeType = data.type
+			break
+		end
+	end
+
+	if value and upgradeType and rng then
+	table.insert(AscendNotificationQueue[upgradeType], {
+		Type = upgradeType,
+		Value = value,
+		RNG = rng,
+		Time = tick()
+	})
+
+		print("Stored notification ascend:", upgradeType, value, rng)
+	else
+		warn("Failed to parse ascend notification:", cleanText)
+	end
+end
+
+NotificationsHolder.ChildAdded:Connect(function(notification)
+	print("Notification child added:", notification.Name, notification.ClassName)
+
+	task.wait(0.5)
+
+	local textLabel = notification:FindFirstChild("Label", true)
+
+	if not textLabel then
+		warn("No TextLabel found inside:", notification.Name)
+		return
+	end
+
+	print("Notification text:", textLabel.Text)
+
+	if textLabel:IsA("TextLabel") then
+		ReadAscendNotification(textLabel.Text)
+	end
+end)
+
+local function GetTimedAscendSwordsLeft(mode)
+	local left = 0
+	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+		if not CompletedTimedAscends[mode][sword.Name] then
+			left += 1
+		end
+	end
+	return left
+end
+
+local ButtonSizeMultiplier = 1
+if AscendRarity == true then
+    ButtonSizeMultiplier = ButtonSizeMultiplier + 1
+end
+if AscendQuality == true then
+    ButtonSizeMultiplier = ButtonSizeMultiplier + 1
+end
+if AscendMold == true then
+    ButtonSizeMultiplier = ButtonSizeMultiplier + 1
+end
+if AscendClass == true then
+    ButtonSizeMultiplier = ButtonSizeMultiplier + 1
+end
+if AscendEnchant == true then
+    ButtonSizeMultiplier = ButtonSizeMultiplier + 1
+end
+if AscendLevel == true then
+    ButtonSizeMultiplier = ButtonSizeMultiplier + 1
+end
+
+local enabled = false
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ControllerUI"
+gui.ResetOnSpawn = false
+gui.Parent = plr:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260*UIScale, 0, 595*UIScale)
+frame.Position = UDim2.new(1, -280, 0.5, -180)
+--frame.Size = UDim2.new(0, 430, 0, 410)
+--frame.Position = UDim2.new(1, -450, 0.5, -180)
+frame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+frame.BorderSizePixel = 1
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 32*UIScale)
+title.BackgroundTransparency = 1
+title.Text = "Auto Ascender"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 22*UIScale
+title.Parent = frame
+local AllSuggestionButtons = {}
+
+local minimizedButton = Instance.new("TextButton")
+minimizedButton.Size = UDim2.new(0, 42*UIScale, 0, 42*UIScale)
+minimizedButton.Position = UDim2.new(1, -50*UIScale, 0.8, -21*UIScale)
+minimizedButton.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+minimizedButton.BorderColor3 = Color3.fromRGB(255,255,255)
+minimizedButton.BorderSizePixel = 1
+minimizedButton.TextColor3 = Color3.fromRGB(255,255,255)
+minimizedButton.Font = Enum.Font.SourceSansBold
+minimizedButton.TextSize = 18*UIScale
+minimizedButton.Text = "ASC"
+minimizedButton.Visible = false
+minimizedButton.Parent = gui
+
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 24*UIScale, 0, 24*UIScale)
+minimizeButton.Position = UDim2.new(1, -56*UIScale, 0, 4*UIScale)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(25,25,25)
+minimizeButton.BorderColor3 = Color3.fromRGB(255,255,255)
+minimizeButton.BorderSizePixel = 1
+minimizeButton.TextColor3 = Color3.fromRGB(255,255,255)
+minimizeButton.Font = Enum.Font.SourceSansBold
+minimizeButton.TextSize = 18*UIScale
+minimizeButton.Text = "-"
+minimizeButton.Parent = frame
+
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 24*UIScale, 0, 24*UIScale)
+closeButton.Position = UDim2.new(1, -28*UIScale, 0, 4*UIScale)
+closeButton.BackgroundColor3 = Color3.fromRGB(80,0,0)
+closeButton.BorderColor3 = Color3.fromRGB(255,255,255)
+closeButton.BorderSizePixel = 1
+closeButton.TextColor3 = Color3.fromRGB(255,255,255)
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.TextSize = 18*UIScale
+closeButton.Text = "X"
+closeButton.Parent = frame
+
+
+local function HideAllSuggestions()
+	for _, btn in ipairs(AllSuggestionButtons) do
+		btn.Visible = false
+	end
+end
+
+local function MinimizeUI()
+	HideAllSuggestions()
+	frame.Visible = false
+	minimizedButton.Visible = true
+end
+
+local function RestoreUI()
+	minimizedButton.Visible = false
+	frame.Visible = true
+end
+
+minimizeButton.MouseButton1Click:Connect(function()
+	MinimizeUI()
+end)
+
+minimizedButton.MouseButton1Click:Connect(function()
+	RestoreUI()
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+	enabled = false
+	gui:Destroy()
+end)
+
+local function GetMatches(input, options, limit)
+	local matches = {}
+
+	if not input or input == "" or not options then
+		return matches
+	end
+
+	input = input:lower()
+
+	for _, name in ipairs(options) do
+		if name:lower():sub(1, #input) == input then
+			table.insert(matches, name)
+		end
+	end
+
+	return matches
+end
+
+local function GetNamesFromModule(module)
+	local names = {}
+
+	for _, data in pairs(module) do
+		if data.Name then
+			table.insert(names, data.Name)
+		end
+	end
+
+	table.sort(names, function(a, b)
+		return a:lower() < b:lower()
+	end)
+
+	return names
+end
+
+local RarityIndex = {}
+for index, data in pairs(RarityModule) do
+	RarityIndex[data.Name] = index
+end
+
+local QualityIndex = {}
+for index, data in pairs(QualityModule) do
+	QualityIndex[data.Name] = index
+end
+
+for name,index in pairs(QualityIndex) do
+	if tostring(name):find("Δ") then
+		print("FOUND DELTA:", name, index)
+	end
+end
+
+local MoldIndex = {}
+for index, data in pairs(MoldModule) do
+	MoldIndex[data.Name] = index
+end
+
+local ClassIndex = {}
+for index, data in pairs(ClassModule) do
+	ClassIndex[data.Name] = index
+end
+
+local RarityTargetNumber = RarityIndex[RarityTarget]
+local QualityTargetNumber = QualityIndex[QualityTarget]
+local MoldTargetNumber = MoldIndex[MoldTarget]
+local ClassTargetNumber = ClassIndex[ClassTarget]
+
+local TargetOptions = {
+	Rarity = GetNamesFromModule(RarityModule),
+	Quality = GetNamesFromModule(QualityModule),
+	Mold = GetNamesFromModule(MoldModule),
+	Class = GetNamesFromModule(ClassModule)
+}
+table.insert(TargetOptions.Quality, "Alpha-")
+table.insert(TargetOptions.Quality, "Alpha")
+table.insert(TargetOptions.Quality, "Alpha+")
+table.insert(TargetOptions.Quality, "Alpha++")
+
+table.insert(TargetOptions.Quality, "Beta-")
+table.insert(TargetOptions.Quality, "Beta")
+table.insert(TargetOptions.Quality, "Beta+")
+table.insert(TargetOptions.Quality, "Beta++")
+
+table.insert(TargetOptions.Quality, "Delta-")
+table.insert(TargetOptions.Quality, "Delta")
+table.insert(TargetOptions.Quality, "Delta+")
+table.insert(TargetOptions.Quality, "Delta++")
+
+table.insert(TargetOptions.Quality, "Sigma-")
+table.insert(TargetOptions.Quality, "Sigma")
+table.insert(TargetOptions.Quality, "Sigma+")
+table.insert(TargetOptions.Quality, "Sigma++")
+
+table.insert(TargetOptions.Quality, "Phi-")
+table.insert(TargetOptions.Quality, "Phi")
+table.insert(TargetOptions.Quality, "Phi+")
+table.insert(TargetOptions.Quality, "Phi++")
+
+table.insert(TargetOptions.Quality, "Psi-")
+table.insert(TargetOptions.Quality, "Psi")
+table.insert(TargetOptions.Quality, "Psi+")
+table.insert(TargetOptions.Quality, "Psi++")
+
+table.insert(TargetOptions.Quality, "Omega-")
+table.insert(TargetOptions.Quality, "Omega")
+table.insert(TargetOptions.Quality, "Omega+")
+table.insert(TargetOptions.Quality, "Omega++")
+
+local function MakeNumberBox(labelText, defaultText, y, callback)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 90*UIScale, 0, 28*UIScale)
+	label.Position = UDim2.new(0, 10*UIScale, 0, y*UIScale)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = Color3.fromRGB(255,255,255)
+	label.Font = Enum.Font.SourceSans
+	label.TextSize = 16*UIScale
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
+
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(0, 140*UIScale, 0, 28*UIScale)
+	box.Position = UDim2.new(0, 105*UIScale, 0, y*UIScale)
+	box.BackgroundColor3 = Color3.fromRGB(20,20,20)
+	box.BorderColor3 = Color3.fromRGB(255,255,255)
+	box.BorderSizePixel = 1
+	box.Text = tostring(defaultText or "")
+	box.PlaceholderText = labelText
+	box.TextColor3 = Color3.fromRGB(255,255,255)
+	box.PlaceholderColor3 = Color3.fromRGB(150,150,150)
+	box.Font = Enum.Font.SourceSans
+	box.TextSize = 15*UIScale
+	box.ClearTextOnFocus = false
+	box.Parent = frame
+
+	box.FocusLost:Connect(function()
+		local num = tonumber(box.Text)
+
+		if num then
+			callback(num)
+			box.Text = tostring(num)
+		else
+			box.Text = tostring(defaultText or "")
+		end
+	end)
+
+	return box
+end
+
+local function MakeTextBox(labelText, defaultText, y, options, callback)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 90*UIScale, 0, 28*UIScale)
+	label.Position = UDim2.new(0, 10*UIScale, 0, y*UIScale)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = Color3.fromRGB(255,255,255)
+	label.Font = Enum.Font.SourceSans
+	label.TextSize = 16*UIScale
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
+
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(0, 140*UIScale, 0, 28*UIScale)
+	box.Position = UDim2.new(0, 105*UIScale, 0, y*UIScale)
+	box.BackgroundColor3 = Color3.fromRGB(20,20,20)
+	box.BorderColor3 = Color3.fromRGB(255,255,255)
+	box.BorderSizePixel = 1
+	box.Text = defaultText or ""
+	box.PlaceholderText = labelText
+	box.TextColor3 = Color3.fromRGB(255,255,255)
+	box.PlaceholderColor3 = Color3.fromRGB(150,150,150)
+	box.Font = Enum.Font.SourceSans
+	box.TextSize = 15*UIScale
+	box.ClearTextOnFocus = false
+	box.Parent = frame
+
+
+	local suggestionButtons = {}
+	local currentSuggestion = nil
+
+	for i = 1, 4 do
+		local s = Instance.new("TextButton")
+		s.Size = UDim2.new(0, 150*UIScale, 0, 30*UIScale)
+		s.Position = UDim2.new(0, 265*UIScale, 0, (y + ((i - 1) * 30))*UIScale)
+		s.BackgroundColor3 = Color3.fromRGB(25,25,25)
+		s.BorderColor3 = Color3.fromRGB(255,255,255)
+		s.BorderSizePixel = 1
+		s.TextColor3 = Color3.fromRGB(220,220,220)
+		s.Font = Enum.Font.SourceSans
+		s.BackgroundTransparency = 0.2
+		s.TextSize = 13*UIScale
+		s.Text = ""
+		s.Visible = false
+		s.Parent = frame
+		s.TextScaled = true
+
+		s.MouseButton1Click:Connect(function()
+			box.Text = s.Text
+			currentSuggestion = s.Text
+			HideAllSuggestions()
+			callback(box.Text, box)
+		end)
+
+		table.insert(suggestionButtons, s)
+		table.insert(AllSuggestionButtons, s)
+	end
+
+local function updateSuggestion()
+	local matches = GetMatches(box.Text, options, 4)
+	currentSuggestion = matches[1]
+
+	for i, btn in ipairs(suggestionButtons) do
+		if matches[i] and matches[i] ~= box.Text and box.Text ~= "" then
+			btn.Text = matches[i]
+			btn.Visible = true
+		else
+			btn.Visible = false
+		end
+	end
+end
+
+	box.Focused:Connect(function()
+		HideAllSuggestions()
+		updateSuggestion()
+	end)
+
+	box:GetPropertyChangedSignal("Text"):Connect(updateSuggestion)
+
+	box.FocusLost:Connect(function()
+		task.wait(0.15)
+		HideAllSuggestions()
+		callback(box.Text, box)
+	end)
+
+	return box
+end
+local ToggleButtons = {}
+
+local ToggleButtons = {}
+
+local function MakeToggle(labelText, defaultValue, y, callback)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(0, 235*UIScale, 0, 28*UIScale)
+	button.Position = UDim2.new(0, 10*UIScale, 0, y*UIScale)
+	button.BorderColor3 = Color3.fromRGB(255,255,255)
+	button.BorderSizePixel = 1
+	button.TextColor3 = Color3.fromRGB(255,255,255)
+	button.Font = Enum.Font.SourceSansBold
+	button.TextSize = 15*UIScale
+	button.Parent = frame
+
+	local value = defaultValue
+	local lastExtraText = ""
+
+	local function refresh(extraText)
+	if extraText ~= nil then
+		lastExtraText = extraText
+	end
+
+	button.Text =
+		labelText .. ": " ..
+		(value and "ON" or "OFF") ..
+		lastExtraText
+
+	button.BackgroundColor3 =
+		value and Color3.fromRGB(0,120,0)
+		or Color3.fromRGB(120,0,0)
+	end
+
+	ToggleButtons[labelText] = {
+		Button = button,
+		GetValue = function()
+			return value
+		end,
+		Refresh = refresh
+	}
+
+	button.MouseButton1Click:Connect(function()
+		value = not value
+		callback(value)
+		refresh()
+	end)
+
+	refresh()
+	return button
+end
+
+MakeTextBox("Rarity", RarityTarget, 45, TargetOptions.Rarity, function(text, box)
+	RarityTarget = text
+	RarityTargetNumber = RarityIndex[text]
+	task.defer(RefreshCounts)
+end)
+
+MakeTextBox("Quality", QualityTarget, 85, TargetOptions.Quality, function(text)
+    local cleanText = text
+
+    for name, symbol in pairs(GreekAliases) do
+        cleanText = cleanText:gsub("^"..name, symbol)
+    end
+
+    QualityTarget = cleanText
+    QualityTargetNumber = QualityIndex[cleanText]
+	task.defer(RefreshCounts)
+end)
+
+MakeTextBox("Mold", MoldTarget, 125, TargetOptions.Mold, function(text, box)
+	MoldTarget = text
+	MoldTargetNumber = MoldIndex[text]
+	task.defer(RefreshCounts)
+end)
+
+MakeTextBox("Class", ClassTarget, 165, TargetOptions.Class, function(text, box)
+	ClassTarget = text
+	ClassTargetNumber = ClassIndex[text]
+	task.defer(RefreshCounts)
+end)
+
+MakeTextBox("Transcend", TranscendTargetShort, 485, nil, function(text, box)
+	local richTarget = GetEnchantTierRichText(text)
+	
+	if richTarget then
+		TranscendTargetShort = text
+		TranscendTarget = richTarget
+		_G.TranscendTarget = text
+		box.Text = text
+		task.defer(RefreshCounts)
+	else
+		box.Text = TranscendTargetShort
+	end
+end)
+
+MakeToggle("Transcend", AscendTranscend, 520, function(v)
+	AscendTranscend = v
+end)
+
+MakeNumberBox("Enchant Time", _G.EnchantTime, 205, function(v)
+	_G.EnchantTime = v
+end)
+
+MakeNumberBox("Level Time", _G.LevelTime, 245, function(v)
+	_G.LevelTime = v
+end)
+
+MakeToggle("Rarity", AscendRarity, 285, function(v) AscendRarity = v end)
+MakeToggle("Quality", AscendQuality, 318, function(v) AscendQuality = v end)
+MakeToggle("Mold", AscendMold, 351, function(v) AscendMold = v end)
+MakeToggle("Class", AscendClass, 384, function(v) AscendClass = v end)
+MakeToggle("Enchant", AscendEnchant, 417, function(v) AscendEnchant = v end)
+MakeToggle("Level", AscendLevel, 450, function(v) AscendLevel = v end)
+
+local startButton = Instance.new("TextButton")
+startButton.Size = UDim2.new(0, 235*UIScale, 0, 32*UIScale)
+startButton.Position = UDim2.new(0, 10*UIScale, 0, 558*UIScale)
+startButton.BackgroundColor3 = Color3.fromRGB(120,0,0)
+startButton.BorderColor3 = Color3.fromRGB(255,255,255)
+startButton.TextColor3 = Color3.fromRGB(255,255,255)
+startButton.Font = Enum.Font.SourceSansBold
+startButton.TextSize = 17*UIScale
+startButton.Text = "Ascender: OFF"
+startButton.Parent = frame
+
+startButton.MouseButton1Click:Connect(function()
+	enabled = not enabled
+	startButton.Text = enabled and "Ascender: ON" or "Ascender: OFF"
+	startButton.BackgroundColor3 = enabled and Color3.fromRGB(0,120,0) or Color3.fromRGB(120,0,0)
+end)
+
+
+local UserInputService = game:GetService("UserInputService")
+
+local dragging = false
+local dragStart
+local startPos
+
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+	end
+end)
+
+frame.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+
+
+-- Functions
+local function getSwordRarityFromText(text)
+	local rarityName = text:match("</font>%s*(.+)")
+	return RarityIndex[rarityName]
+end
+
+local function getSwordQualityFromText(text)
+	local qualityName = text:match("%[(.-)%]")
+
+	if not qualityName then
+		return nil
+	end
+
+	return QualityIndex[qualityName]
+end
+
+local function TP(location)
+	RemoteFunction:InvokeServer("Teleport In Base", location)
+	task.wait(0.25)
+end
+
+local function ChangeAscenderMode(mode, pickup)
+	if pickup then
+		RemoteFunction:InvokeServer("Pickup Ascender")
+		return
+	end
+	RemoteEvent:FireServer("Set Ascender Mode", mode)
+	task.wait(1)
+end
+
+local function DropSword(swordId)
+	swordId = tostring(swordId)
+	RemoteEvent:FireServer("Drop Sword", swordId)
+	RemoteEvent:FireServer("Set Hotbar", swordId, "Inventory")
+	task.wait(0.5)
+end
+
+local function GetSwordObject(swordName)
+	return SwordsFolder:FindFirstChild(swordName)
+end
+
+local function GetCurrentSword()
+	return PlrStats.Ascender:GetChildren()[1]
+end
+
+local function GetCurrentSwordRarity()
+	local sword = GetCurrentSword()
+	if not sword then
+		return nil
+	end
+	local swordObj = GetSwordObject(sword.Name)
+	if not swordObj then
+		return nil
+	end
+    if swordObj:FindFirstChild("Main") then
+	local info = swordObj.Main.Gui.ItemInfo
+	return getSwordRarityFromText(info.RarityQuality.Text)
+    else
+        return nil
+    end
+end
+
+local function GetCurrentSwordQuality()
+	local sword = GetCurrentSword()
+	if not sword then
+		return nil
+	end
+
+	local swordObj = GetSwordObject(sword.Name)
+	if not swordObj or not swordObj:FindFirstChild("Main") then
+		return nil
+	end
+	print(swordObj.Main.Gui.ItemInfo.RarityQuality.Text)
+	local text = swordObj.Main.Gui.ItemInfo.RarityQuality.Text
+
+	print("RAW:", text)
+
+	local qualityName = getSwordQualityFromText(text)
+
+	print("PARSED:", "[" .. tostring(qualityName) .. "]")
+	print("INDEX:", QualityIndex[qualityName])
+
+	return QualityIndex[qualityName]
+end
+
+local function GetCurrentSwordMold()
+	local sword = GetCurrentSword()
+	if not sword then
+		return nil
+	end
+	local swordObj = GetSwordObject(sword.Name)
+	if not swordObj then
+		return nil
+	end
+    if swordObj:FindFirstChild("Main") then
+	local info = swordObj.Main.Gui.ItemInfo
+	local moldName = info.Mold.Text
+	return MoldIndex[moldName]
+    else
+        return nil
+    end
+end
+
+local function GetCurrentSwordClass()
+	local sword = GetCurrentSword()
+	if not sword then
+		return nil
+	end
+	local swordObj = GetSwordObject(sword.Name)
+	if not swordObj then
+		return nil
+	end
+    if swordObj:FindFirstChild("Main") then
+	local info = swordObj.Main.Gui.ItemInfo
+	local className = info.Class.Text:match("^(%S+)")
+	return ClassIndex[className]
+    else
+        return nil
+    end
+end
+
+local function SortSwordsByValue(swords, getValue)
+	table.sort(swords, function(a, b)
+		local aValue = getValue(a) or 0
+		local bValue = getValue(b) or 0
+
+		if SwordAscendingOrder == "Highest" then
+			return aValue > bValue
+		end
+
+		return aValue < bValue
+	end)
+
+	return swords
+end
+
+local function GetSwordInfo(sword)
+	local swordObj = GetSwordObject(sword.Name)
+
+	if not swordObj or not swordObj:FindFirstChild("Main") then
+		return nil
+	end
+
+	return swordObj.Main.Gui.ItemInfo
+end
+
+local function GetBankSwordsThatNeedAscending(targetNumber, getValue)
+	local swords = {}
+
+	if not targetNumber then
+		return swords
+	end
+
+	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+		local value = getValue(sword)
+
+		if value and value < targetNumber then
+			table.insert(swords, sword)
+		end
+	end
+
+	return SortSwordsByValue(swords, getValue)
+end
+
+local function GetRarityBankSwordsThatNeedAscending()
+	return GetBankSwordsThatNeedAscending(RarityTargetNumber, function(sword)
+		local info = GetSwordInfo(sword)
+		if info then
+			return getSwordRarityFromText(info.RarityQuality.Text)
+		end
+	end)
+end
+
+local function GetQualityBankSwordsThatNeedAscending()
+	return GetBankSwordsThatNeedAscending(QualityTargetNumber, function(sword)
+		local info = GetSwordInfo(sword)
+		if info then
+			return getSwordQualityFromText(info.RarityQuality.Text)
+		end
+	end)
+end
+
+local function GetMoldBankSwordsThatNeedAscending()
+	return GetBankSwordsThatNeedAscending(MoldTargetNumber, function(sword)
+		local info = GetSwordInfo(sword)
+		if info then
+			return MoldIndex[info.Mold.Text]
+		end
+	end)
+end
+
+local function GetClassBankSwordsThatNeedAscending()
+	return GetBankSwordsThatNeedAscending(ClassTargetNumber, function(sword)
+		local info = GetSwordInfo(sword)
+		if info then
+			local className = info.Class.Text:match("^(%S+)")
+			return ClassIndex[className]
+		end
+	end)
+end
+
+local function BankSword()
+	local currentSword = GetCurrentSword()
+	ChangeAscenderMode(nil, true)
+	TP("Bank")
+	if currentSword then
+		DropSword(currentSword.Name)
+	end
+end
+
+local function GetCurrentTranscenderSword()
+	return PlrStats.Transcender:GetChildren()[1]
+end
+
+local function InsertSwordIntoTranscender(targetSword)
+	if #PlrStats.Transcender:GetChildren() ~= 0 then
+		return true
+	end
+
+	local swordObj = GetSwordObject(targetSword.Name)
+
+	if not swordObj or not swordObj:FindFirstChild("Main") then
+		return false
+	end
+
+	repeat
+		plr.Character.HumanoidRootPart.CFrame =
+			swordObj.Main.CFrame + Vector3.new(0, 6, 0)
+
+		task.wait(LagPreventionTimeToPickupSwords)
+	until PlrStats.Swords:FindFirstChild(targetSword.Name)
+
+	TP("Transcender")
+	DropSword(targetSword.Name)
+
+	return true
+end
+
+local function PickupTranscender()
+	RemoteFunction:InvokeServer("Pickup Transcender")
+	task.wait(0.5)
+end
+
+local function BankTranscenderSword()
+	local currentSword = GetCurrentTranscenderSword()
+
+	PickupTranscender()
+	TP("Bank")
+
+	if currentSword then
+		DropSword(currentSword.Name)
+	end
+end
+
+local function GetEnchantValueFromInfo(info, enchantName)
+	local enchants = info:FindFirstChild("Enchants")
+	if not enchants then
+		return nil
+	end
+
+	local label = enchants:FindFirstChild(enchantName)
+	if not label then
+		return nil
+	end
+
+	return label.Text
+end
+
+local function GetEnchantTierNumber(value)
+	if not value then
+		return nil
+	end
+
+	value = tostring(value):lower()
+
+	local color, symbol = value:match("<font color=[\"'](#[%da-f]+)[\"']>(%+%+)</font>")
+
+	if not color then
+		color, symbol = value:match("<font color=[\"'](#[%da-f]+)[\"']>(%+)</font>")
+	end
+
+	if not color then
+		color, symbol = value:match("<font color=[\"'](#[%da-f]+)[\"']>(%-)</font>")
+	end
+
+	if not color or not symbol then
+		return nil
+	end
+
+	local key = "<font color='" .. color .. "'>" .. symbol .. "</font>"
+	return EnchantTiers[key]
+end
+
+local function IsEnchantAtOrAboveTarget(value)
+	local valueNumber = GetEnchantTierNumber(value)
+	local targetNumber = GetEnchantTierNumber(TranscendTarget)
+
+	return valueNumber and targetNumber and valueNumber >= targetNumber
+end
+
+local function SwordNeedsTranscending(sword)
+	local info = GetSwordInfo(sword)
+	if not info then
+		return false
+	end
+
+	local targetNumber = GetEnchantTierNumber(TranscendTarget)
+	if not targetNumber then
+		return false
+	end
+
+	for _, enchantName in ipairs({"Enchant1", "Enchant2", "Enchant3"}) do
+		local value = GetEnchantValueFromInfo(info, enchantName)
+		local valueNumber = GetEnchantTierNumber(value)
+
+		if not valueNumber then
+			return true
+		end
+
+		if valueNumber < targetNumber then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function GetTranscendBankSwordsThatNeedAscending()
+	local swords = {}
+
+	for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+		if SwordNeedsTranscending(sword) then
+			table.insert(swords, sword)
+		end
+	end
+
+	return swords
+end
+
+local function TranscendEnchant(enchantName)
+	local sword = GetCurrentTranscenderSword()
+	if not sword then
+		return false
+	end
+
+	local swordObj = GetSwordObject(sword.Name)
+	if not swordObj or not swordObj:FindFirstChild("Main") then
+		return false
+	end
+
+	local info = swordObj.Main.Gui.ItemInfo
+
+	-- Already at target or higher, don't start transcending
+	if IsEnchantAtOrAboveTarget(GetEnchantValueFromInfo(info, enchantName)) then
+		return true
+	end
+
+	RemoteEvent:FireServer("Set Transcender Mode", enchantName)
+
+	repeat
+		task.wait(0.1)
+
+		swordObj = GetSwordObject(sword.Name)
+		if not swordObj or not swordObj:FindFirstChild("Main") then
+			return false
+		end
+
+	until IsEnchantAtOrAboveTarget(
+		GetEnchantValueFromInfo(swordObj.Main.Gui.ItemInfo, enchantName)
+	)
+
+	task.wait(2.25)
+	RemoteEvent:FireServer("Set Transcender Mode", "")
+	task.wait(2.25)
+
+	return true
+end
+
+local function GetWeatherNames()
+	local rawText = Players.LocalPlayer.PlayerGui.Main.Level.WeatherLuck.Text
+	local weatherNames = {}
+
+	for weatherName in rawText:gmatch(">([^<>%[]+)%s*%[x[%d%.]+%]</font>") do
+		weatherName = weatherName:gsub("^%s+", ""):gsub("%s+$", "")
+
+		if weatherName ~= "" then
+			table.insert(weatherNames, weatherName)
+		end
+	end
+
+	if #weatherNames == 0 then
+		return "None"
+	end
+
+	return table.concat(weatherNames, ", ")
+end
+
+--Sword Helper
+local function InsertSword(targetSword)
+	if #PlrStats.Ascender:GetChildren() ~= 0 then
+		return true
+	end
+	local swordObj = GetSwordObject(targetSword.Name)
+
+	if not swordObj then
+		return false
+	end
+	repeat
+		plr.Character.HumanoidRootPart.CFrame =
+			swordObj.Main.CFrame + Vector3.new(0, 6, 0)
+		task.wait(LagPreventionTimeToPickupSwords)
+	until PlrStats.Swords:FindFirstChild(targetSword.Name)
+	TP("Ascender")
+	DropSword(targetSword.Name)
+	return true
+end
+
+local function Ascend(mode, duration)
+	ChangeAscenderMode(mode)
+	local start = tick()
+	repeat
+		task.wait(0.1)
+	until tick() - start >= duration
+end
+
+local function WaitForAscendData(upgradeType, wantedValue, timeout)
+	local startWait = tick()
+
+	repeat
+		local queue = AscendNotificationQueue[upgradeType]
+
+		for i = #queue, 1, -1 do
+			local data = queue[i]
+
+			if data.Value == wantedValue then
+				table.remove(queue, i)
+				return data
+			end
+		end
+
+		task.wait(0.1)
+	until tick() - startWait >= timeout
+
+	return nil
+end
+
+local function SendAscendWebhook(TimeTaken, UpgradeType, AscendStartTime)
+	if not _G.WebhookURL or _G.WebhookURL == "" then
+		return
+	end
+
+	local sword = GetCurrentSword()
+	if not sword then
+		return
+	end
+
+	local swordObj = GetSwordObject(sword.Name)
+	if not swordObj or not swordObj:FindFirstChild("Main") then
+		return
+	end
+
+	local info = swordObj.Main.Gui.ItemInfo
+
+	local RarValue = tostring(info.RarityQuality.Text:match("</font>%s*(.+)") or "Unknown")
+	local QualValue = tostring(info.RarityQuality.Text:match('">(.-)</font>') or "Unknown")
+	local MolValue = tostring(info.Mold.Text or "Unknown")
+	local SendTitle = "⚔️ Your Sword Ascended! (??? RNG)"
+
+	local currentSwordName = sword.Name
+
+	WebhookSwordData[currentSwordName] = WebhookSwordData[currentSwordName] or {
+		Rarity = {},
+		Quality = {},
+		Mold = {}
+	}
+
+local swordWebhookData = WebhookSwordData[currentSwordName]
+	
+	local WantedValue
+
+	if UpgradeType == "Rarity" then
+		WantedValue = RarValue
+	elseif UpgradeType == "Quality" then
+		WantedValue = QualValue
+	elseif UpgradeType == "Mold" then
+		WantedValue = MolValue
+	end
+
+local ascendData = WaitForAscendData(UpgradeType, WantedValue, 5)
+	if ascendData then
+
+	SendTitle = "⚔️ "..plr.Name.."'s "
+		.. ascendData.Type
+		.. " Ascended to "
+		.. ascendData.Value
+		.. " ("
+		.. ascendData.RNG
+		.. " RNG)"
+
+	swordWebhookData[UpgradeType] = {
+		Value = ascendData.Value,
+		RNG = ascendData.RNG,
+		TimeTaken = tostring(math.floor(TimeTaken * 10) / 10).."s"
+	}
+print("Saved webhook data:", UpgradeType, swordWebhookData[UpgradeType].RNG, swordWebhookData[UpgradeType].TimeTaken)
+end
+local function FormatAscendField(baseValue, data)
+
+	local text = tostring(baseValue)
+
+	if data then
+
+		if data.RNG then
+			text = text .. "\n🎲 RNG: " .. tostring(data.RNG)
+		end
+
+		if data.TimeTaken then
+			text = text .. "\n⏱ Time: " .. tostring(data.TimeTaken)
+		end
+	end
+
+	return text
+end
+
+	local Body = HttpService:JSONEncode({
+        username = "Abbi's Webhook Bot",
+        avatar_url = "",
+
+        content = "",
+
+        embeds = {
+            {
+				title = SendTitle,
+				color = 5793266,
+				fields = {
+	{
+		name = "Rarity",
+		value = FormatAscendField(RarValue, swordWebhookData.Rarity),
+		inline = true
+	},
+	{
+		name = "Quality",
+		value = FormatAscendField(QualValue, swordWebhookData.Quality),
+		inline = true
+	},
+	{
+		name = "Mold",
+		value = FormatAscendField(MolValue, swordWebhookData.Mold),
+		inline = true
+	}
+}
+			},
+			{
+				title = "Additional Info",
+				color = 5793266,
+				fields = {
+					{ name = "Weathers Active", value = GetWeatherNames(), inline = true },
+					{ name = "", value = "", inline = true},
+					{ name = "Total Luck Boost", value = tostring(game:GetService("ReplicatedStorage").Values.Lucks.Detailed.WeatherLuck.Value).."x", inline = true }
+					
+				}
+			}
+        }
+    })
+
+local requestFunc = syn and syn.request or http_request or request
+
+if requestFunc then
+	local url = _G.WebhookURL .. "?wait=true"
+	local method = "POST"
+
+	local savedMessageId = WebhookMessages[currentSwordName]
+
+	if savedMessageId then
+		url = _G.WebhookURL .. "/messages/" .. savedMessageId
+		method = "PATCH"
+	end
+
+	local response = requestFunc({
+		Url = url,
+		Method = method,
+		Headers = {
+			["Content-Type"] = "application/json"
+		},
+		Body = Body
+	})
+
+	if response and response.Body and method == "POST" then
+		local success, decoded = pcall(function()
+			return HttpService:JSONDecode(response.Body)
+		end)
+
+		if success and decoded and decoded.id then
+			WebhookMessages[currentSwordName] = decoded.id
+		else
+			warn("Webhook sent, but could not save message ID:", response.Body)
+		end
+	end
+end
+end
+
+
+
+local function RunTranscender()
+	if not AscendTranscend then
+		return false
+	end
+
+	local swords = GetTranscendBankSwordsThatNeedAscending()
+	if #swords == 0 then
+		return false
+	end
+
+	local sword = swords[1]
+
+	local inserted = WithMovementLock(function()
+		return InsertSwordIntoTranscender(sword)
+	end)
+
+	if not inserted then
+		return false
+	end
+
+	TranscendEnchant("Enchant1")
+	TranscendEnchant("Enchant2")
+	TranscendEnchant("Enchant3")
+
+	WithMovementLock(function()
+		BankTranscenderSword()
+	end)
+
+	return true
+end
+
+local Tasks = {
+
+	Rarity = function()
+		if not AscendRarity or not RarityTargetNumber then
+			return false
+		end
+		local swords = GetRarityBankSwordsThatNeedAscending()
+		if #swords == 0 then
+			return false
+		end
+		local sword = swords[1]
+		local inserted = WithMovementLock(function()
+			return InsertSword(sword)
+		end)
+		if not inserted then
+			return false
+		end
+		local startTime = tick()
+		LastAscendDataByType["Rarity"] = nil
+		ChangeAscenderMode("Rarity")
+		repeat
+			task.wait(0.1)
+		until (GetCurrentSwordRarity() or 0) >= RarityTargetNumber
+		SendAscendWebhook(tick() - startTime, "Rarity", startTime)
+		BankSword()
+		return true
+	end,
+
+	Quality = function()
+		if not AscendQuality or not QualityTargetNumber then
+			return false
+		end
+		local swords = GetQualityBankSwordsThatNeedAscending()
+		if #swords == 0 then
+			return false
+		end
+		local sword = swords[1]
+		local inserted = WithMovementLock(function()
+			return InsertSword(sword)
+		end)
+
+		if not inserted then
+			return false
+		end
+		local startTime = tick()
+		LastAscendDataByType["Quality"] = nil
+		ChangeAscenderMode("Quality")
+		repeat
+			task.wait(0.1)
+		until (GetCurrentSwordQuality() or 0) >= QualityTargetNumber
+		SendAscendWebhook(tick() - startTime, "Quality", startTime)
+		BankSword()
+		return true
+	end,
+
+	Mold = function()
+		if not AscendMold or not MoldTargetNumber then
+			return false
+		end
+		local swords = GetMoldBankSwordsThatNeedAscending()
+		if #swords == 0 then
+			return false
+		end
+		local sword = swords[1]
+		local inserted = WithMovementLock(function()
+			return InsertSword(sword)
+		end)
+
+		if not inserted then
+			return false
+		end
+		local startTime = tick()
+		LastAscendDataByType["Mold"] = nil
+		ChangeAscenderMode("Mold")
+		repeat
+			task.wait(0.1)
+		until (GetCurrentSwordMold() or 0) >= MoldTargetNumber
+		SendAscendWebhook(tick() - startTime, "Mold", startTime)
+	    		WithMovementLock(function()
+					BankSword()
+				end)
+		return true
+	end,
+
+	Class = function()
+		if not AscendClass or not ClassTargetNumber then
+			return false
+		end
+		local swords = GetClassBankSwordsThatNeedAscending()
+		if #swords == 0 then
+			return false
+		end
+		local sword = swords[1]
+		local inserted = WithMovementLock(function()
+			return InsertSword(sword)
+		end)
+
+		if not inserted then
+			return false
+		end
+		ChangeAscenderMode("Class")
+		repeat
+			task.wait(0.1)
+		until (GetCurrentSwordClass() or 0) >= ClassTargetNumber
+	    		WithMovementLock(function()
+					BankSword()
+				end)
+		return true
+	end,
+
+    Enchant = function()
+	    if not AscendEnchant then
+	    	return false
+	    end
+	    for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+	    	if not CompletedTimedAscends.Enchant[sword.Name] then
+	    		CompletedTimedAscends.Enchant[sword.Name] = true
+	    		local inserted = WithMovementLock(function()
+					return InsertSword(sword)
+				end)
+
+				if not inserted then
+					return false
+				end
+	    		Ascend("Enchant", _G.EnchantTime)
+	    		WithMovementLock(function()
+					BankSword()
+				end)
+	    		return true
+	    	end
+	    end
+	    return false
+    end,
+
+    Level = function()
+	    if not AscendLevel then
+	    	return false
+	    end
+	    for _, sword in ipairs(PlrStats.Bank:GetChildren()) do
+	    	if not CompletedTimedAscends.Level[sword.Name] then
+	    		CompletedTimedAscends.Level[sword.Name] = true
+	    		local inserted = WithMovementLock(function()
+					return InsertSword(sword)
+				end)
+
+				if not inserted then
+					return false
+				end
+	    		Ascend("Level", _G.LevelTime)
+	    		WithMovementLock(function()
+					BankSword()
+				end)
+	    		return true
+	    	end
+	    end
+	    return false
+    end
+}
+
+local function UpdateUI(Rar, Qual, Mol, Clas, Ench, Lev, Trans)
+	if ToggleButtons.Rarity then
+		ToggleButtons.Rarity.Refresh(" [" .. Rar .. "]")
+	end
+
+	if ToggleButtons.Quality then
+		ToggleButtons.Quality.Refresh(" [" .. Qual .. "]")
+	end
+
+	if ToggleButtons.Mold then
+		ToggleButtons.Mold.Refresh(" [" .. Mol .. "]")
+	end
+
+	if ToggleButtons.Class then
+		ToggleButtons.Class.Refresh(" [" .. Clas .. "]")
+	end
+
+	if ToggleButtons.Enchant then
+		ToggleButtons.Enchant.Refresh(" [" .. Ench .. "]")
+	end
+
+	if ToggleButtons.Level then
+		ToggleButtons.Level.Refresh(" [" .. Lev .. "]")
+	end
+
+	if ToggleButtons.Transcend then
+		ToggleButtons.Transcend.Refresh(" [" .. Trans .. "]")
+	end
+end
+
+local function RefreshCounts()
+	UpdateUI(
+		#GetRarityBankSwordsThatNeedAscending(),
+		#GetQualityBankSwordsThatNeedAscending(),
+		#GetMoldBankSwordsThatNeedAscending(),
+		#GetClassBankSwordsThatNeedAscending(),
+		GetTimedAscendSwordsLeft("Enchant"),
+		GetTimedAscendSwordsLeft("Level"),
+		#GetTranscendBankSwordsThatNeedAscending()
+	)
+end
+
+PlrStats.Bank.ChildAdded:Connect(function()
+	task.wait(0.5)
+	RefreshCounts()
+end)
+
+PlrStats.Bank.ChildRemoved:Connect(function()
+	task.wait(0.2)
+	RefreshCounts()
+end)
+
+task.spawn(function()
+	while gui.Parent do
+		RefreshCounts()
+		task.wait(0.25)
+	end
+end)
+
+task.spawn(function()
+	while true do
+		if enabled then
+			for _, taskName in ipairs(Order) do
+				local taskFunction = Tasks[taskName]
+
+				if taskFunction then
+					local completed = taskFunction()
+
+					if completed then
+						break
+					end
+				else
+					warn("Invalid task in Order table:", taskName)
+				end
+			end
+		end
+
+		task.wait(0.1)
+	end
+end)
+
+task.spawn(function()
+	while true do
+		if enabled then
+			RunTranscender()
+		end
+
+		task.wait(0.1)
+	end
+end)
