@@ -2,7 +2,7 @@
 ----------Main Commit------------
 --/////////////////////////////--
 
---V1.1
+--V1.2
 
 
 -- Auto Ascend
@@ -15,7 +15,7 @@ local TranscendTargetShort =
 	and _G.TranscendTarget
 	or "-1"
 local AscendTranscend = _G.TranscendEnabled
-
+local RefreshCounts
 local AscendRarity = _G.RarityEnabled
 local AscendQuality = _G.QualityEnabled
 local AscendMold = _G.MoldEnabled
@@ -238,13 +238,10 @@ end
 local NotificationsHolder = plr.PlayerGui
 	:WaitForChild("Notifications")
 	:WaitForChild("Holder")
-print("Notification listener connected to:", NotificationsHolder:GetFullName())
 
 local function ReadAscendNotification(rawText)
 	local cleanText = CleanRichText(rawText)
-	print(rawText)
 	local rng = cleanText:match("%((.-)%)")
-	print(rng)
 	if rng then
 		local number, suffix = rng:match("1/([%d,%.]+)(%a*)")
 
@@ -487,12 +484,6 @@ end
 local QualityIndex = {}
 for index, data in pairs(QualityModule) do
 	QualityIndex[data.Name] = index
-end
-
-for name,index in pairs(QualityIndex) do
-	if tostring(name):find("Δ") then
-		print("FOUND DELTA:", name, index)
-	end
 end
 
 local MoldIndex = {}
@@ -745,6 +736,9 @@ MakeTextBox("Quality", QualityTarget, 85, TargetOptions.Quality, function(text)
 
     QualityTarget = cleanText
     QualityTargetNumber = QualityIndex[cleanText]
+	print("INPUT:", text)
+	print("NORMALIZED:", cleanText)
+	print("NUMBER:", QualityIndex[cleanText])
 	task.defer(RefreshCounts)
 end)
 
@@ -917,17 +911,10 @@ local function GetCurrentSwordQuality()
 	if not swordObj or not swordObj:FindFirstChild("Main") then
 		return nil
 	end
-	print(swordObj.Main.Gui.ItemInfo.RarityQuality.Text)
+
 	local text = swordObj.Main.Gui.ItemInfo.RarityQuality.Text
 
-	print("RAW:", text)
-
-	local qualityName = getSwordQualityFromText(text)
-
-	print("PARSED:", "[" .. tostring(qualityName) .. "]")
-	print("INDEX:", QualityIndex[qualityName])
-
-	return QualityIndex[qualityName]
+	return getSwordQualityFromText(text)
 end
 
 local function GetCurrentSwordMold()
@@ -1453,24 +1440,32 @@ local function RunTranscender()
 		return false
 	end
 
-	local swords = GetTranscendBankSwordsThatNeedAscending()
-	if #swords == 0 then
-		return false
+	local sword = GetCurrentTranscenderSword()
+
+	if not sword then
+		local swords = GetTranscendBankSwordsThatNeedAscending()
+
+		if #swords == 0 then
+			return false
+		end
+
+		local inserted = WithMovementLock(function()
+			return InsertSwordIntoTranscender(swords[1])
+		end)
+
+		if not inserted then
+			return false
+		end
+
+		repeat
+		task.wait(0.1)
+		sword = GetCurrentTranscenderSword()
+		until sword
 	end
 
-	local sword = swords[1]
-
-	local inserted = WithMovementLock(function()
-		return InsertSwordIntoTranscender(sword)
-	end)
-
-	if not inserted then
-		return false
+	for _, enchant in ipairs({"Enchant1", "Enchant2", "Enchant3"}) do
+		TranscendEnchant(enchant)
 	end
-
-	TranscendEnchant("Enchant1")
-	TranscendEnchant("Enchant2")
-	TranscendEnchant("Enchant3")
 
 	WithMovementLock(function()
 		BankTranscenderSword()
@@ -1508,30 +1503,68 @@ local Tasks = {
 	end,
 
 	Quality = function()
-		if not AscendQuality or not QualityTargetNumber then
-			return false
-		end
-		local swords = GetQualityBankSwordsThatNeedAscending()
-		if #swords == 0 then
-			return false
-		end
-		local sword = swords[1]
-		local inserted = WithMovementLock(function()
-			return InsertSword(sword)
-		end)
+	if not AscendQuality or not QualityTargetNumber then
+		return false
+	end
 
-		if not inserted then
-			return false
+	------------------------------------------------
+	-- Handle sword already inside Ascender
+	------------------------------------------------
+
+	local currentSword = GetCurrentSword()
+
+	if currentSword then
+		if (GetCurrentSwordQuality() or 0) >= QualityTargetNumber then
+			WithMovementLock(BankSword)
+			return true
 		end
-		local startTime = tick()
-		LastAscendDataByType["Quality"] = nil
+
 		ChangeAscenderMode("Quality")
+
 		repeat
 			task.wait(0.1)
 		until (GetCurrentSwordQuality() or 0) >= QualityTargetNumber
-		SendAscendWebhook(tick() - startTime, "Quality", startTime)
-		BankSword()
+
+		SendAscendWebhook(0, "Quality", tick())
+
+		WithMovementLock(BankSword)
+
 		return true
+	end
+
+	------------------------------------------------
+	-- NO sword in Ascender -> search bank
+	------------------------------------------------
+
+	local swords = GetQualityBankSwordsThatNeedAscending()
+
+	if #swords == 0 then
+		return false
+	end
+
+	local sword = swords[1]
+
+	local inserted = WithMovementLock(function()
+		return InsertSword(sword)
+	end)
+
+	if not inserted then
+		return false
+	end
+
+	local startTime = tick()
+
+	ChangeAscenderMode("Quality")
+
+	repeat
+		task.wait(0.1)
+	until (GetCurrentSwordQuality() or 0) >= QualityTargetNumber
+
+	SendAscendWebhook(tick() - startTime, "Quality", startTime)
+
+	WithMovementLock(BankSword)
+
+	return true
 	end,
 
 	Mold = function()
@@ -1668,7 +1701,7 @@ local function UpdateUI(Rar, Qual, Mol, Clas, Ench, Lev, Trans)
 	end
 end
 
-local function RefreshCounts()
+RefreshCounts = function()
 	UpdateUI(
 		#GetRarityBankSwordsThatNeedAscending(),
 		#GetQualityBankSwordsThatNeedAscending(),
